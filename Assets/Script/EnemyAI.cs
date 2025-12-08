@@ -30,9 +30,6 @@ public class EnemyAI : MonoBehaviour
     public float chaseSpeed = 3.5f;
     public float stoppingDistance = 2f;
 
-    [Header("Death VFX")]
-    public GameObject smokeVFXPrefab;
-    public Vector3 vfxOffset = Vector3.zero;
 
     // States
     private enum State { Idle, Chasing, Attacking, Dead }
@@ -280,7 +277,7 @@ public class EnemyAI : MonoBehaviour
     void Die()
     {
         if (isDead) return;
-
+        
         isDead = true;
         currentState = State.Dead;
 
@@ -297,22 +294,6 @@ public class EnemyAI : MonoBehaviour
             animator.SetFloat(ANIM_SPEED, 0);
             animator.ResetTrigger(ANIM_ATTACK);
             animator.SetTrigger(ANIM_DEATH);
-        }
-
-        if (smokeVFXPrefab != null)
-        {
-            Vector3 vfxPosition = transform.position + vfxOffset;
-            GameObject vfx = Instantiate(smokeVFXPrefab, vfxPosition, Quaternion.identity);
-
-            ParticleSystem ps = vfx.GetComponent<ParticleSystem>();
-            if (ps != null)
-            {
-                Destroy(vfx, ps.main.duration + ps.main.startLifetime.constantMax);
-            }
-            else
-            {
-                Destroy(vfx, 3f);
-            }
         }
 
         Collider col = GetComponent<Collider>();

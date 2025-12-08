@@ -37,10 +37,11 @@ public class PlayerMovement3D : MonoBehaviour
     private Vector3 dashDirection;
 
     [Header("Attack Settings")]
-    public float attackCooldown = 0.5f;
-    private float lastAttackTime = -999f;
-    private float attackRange;
     public int attackDamage = 25;
+    public float attackRange = 2f;
+    public float attackCooldown = 0.5f;
+    public LayerMask enemyLayer;
+    private bool isAttacking = false;
 
     void Awake()
     {
@@ -66,7 +67,12 @@ public class PlayerMovement3D : MonoBehaviour
     {
         CheckGround();
         ApplyGravity();
-        MovePlayer();
+        
+        // Only allow movement if not attacking
+        if (!isAttacking)
+        {
+            MovePlayer();
+        }
     }
 
     private void CheckGround()
@@ -146,7 +152,7 @@ public class PlayerMovement3D : MonoBehaviour
         moveInput = context.ReadValue<Vector2>();
         isMoving = moveInput != Vector2.zero;
 
-        if (animator != null)
+        if (animator != null && !isAttacking)
         {
             animator.SetBool("isMoving", isMoving);
         }
@@ -154,7 +160,7 @@ public class PlayerMovement3D : MonoBehaviour
 
     public void OnJump(InputAction.CallbackContext context)
     {
-        if (context.started && isGrounded)
+        if (context.started && isGrounded && !isAttacking)
         {
             velocity.y = Mathf.Sqrt(jumpHeight * 2f * -gravity);
             if (animator != null)
@@ -167,7 +173,7 @@ public class PlayerMovement3D : MonoBehaviour
     public void OnDash(InputAction.CallbackContext context)
     {
         if (!context.started) return;
-
+        if (isAttacking) return;
         if (Time.time < lastDashTime + dashCooldown) return;
         if (isDashing) return;
 
@@ -208,17 +214,43 @@ public class PlayerMovement3D : MonoBehaviour
     public void OnAttack(InputAction.CallbackContext context)
     {
         if (!context.started) return;
+        if (isAttacking) return;
 
-        if (Time.time < lastAttackTime + attackCooldown) return;
-        lastAttackTime = Time.time;
+        Attack();
+    }
 
+    void Attack()
+    {
+        isAttacking = true;
+        
         if (animator != null)
+        {
             animator.SetTrigger("attack");
+            animator.SetBool("isMoving", false); // Stop movement animation
+        }
+
+        // Wait for attack animation to finish
+        StartCoroutine(AttackCoroutine());
+    }
+
+    IEnumerator AttackCoroutine()
+    {
+        // Wait a bit for the attack animation to reach the hit point
+        yield return new WaitForSeconds(0.3f);
+        
+        // Detect and damage enemies in range
+        DealDamageToEnemies();
+        
+        // Wait for rest of attack animation to finish
+        yield return new WaitForSeconds(attackCooldown - 0.3f);
+
+        isAttacking = false;
     }
 
     void DealDamageToEnemies()
     {
-        Collider[] hitEnemies = Physics.OverlapSphere(transform.position, attackRange, groundMask);
+        // Find all colliders in attack range on enemy layer
+        Collider[] hitEnemies = Physics.OverlapSphere(transform.position, attackRange, enemyLayer);
 
         foreach (Collider enemy in hitEnemies)
         {
@@ -226,7 +258,6 @@ public class PlayerMovement3D : MonoBehaviour
             if (enemyAi != null)
             {
                 enemyAi.TakeDamage(attackDamage);
-                continue;
             }
         }
     }
@@ -239,21 +270,9 @@ public class PlayerMovement3D : MonoBehaviour
             Gizmos.color = isGrounded ? Color.green : Color.red;
             Gizmos.DrawWireSphere(groundCheck.position, groundDistance);
         }
+
+        // Visualize attack range
+        Gizmos.color = Color.blue;
+        Gizmos.DrawWireSphere(transform.position, attackRange);
     }
-
-    //void DealDamageToEnemies()
-    //{
-    //    // Find all colliders in attack range on enemy layer
-    //    Collider[] hitEnemies = Physics.OverlapSphere(transform.position, attackRange, groundMask);
-
-    //    foreach (Collider enemy in hitEnemies)
-    //    {
-    //        EnemyAI enemyAi = enemy.GetComponent<EnemyAI>();
-    //        if (enemyAi != null)
-    //        {
-    //            enemyAi.TakeDamage(attackDamage);
-    //            continue;
-    //        }
-    //    }
-    //}
 }
