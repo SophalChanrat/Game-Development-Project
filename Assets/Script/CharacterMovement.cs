@@ -2,7 +2,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-[RequireComponent(typeof(Rigidbody))]
+
 public class PlayerMovement3D : MonoBehaviour
 {
     [Header("Movement Settings")]
