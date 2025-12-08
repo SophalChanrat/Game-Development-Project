@@ -240,4 +240,20 @@ public class PlayerMovement3D : MonoBehaviour
             Gizmos.DrawWireSphere(groundCheck.position, groundDistance);
         }
     }
+
+    void DealDamageToEnemies()
+    {
+        // Find all colliders in attack range on enemy layer
+        Collider[] hitEnemies = Physics.OverlapSphere(transform.position, attackRange, groundMask);
+
+        foreach (Collider enemy in hitEnemies)
+        {
+            EnemyAI enemyAi = enemy.GetComponent<EnemyAI>();
+            if (enemyAi != null)
+            {
+                enemyAi.TakeDamage(attackDamage);
+                continue;
+            }
+        }
+    }
 }
