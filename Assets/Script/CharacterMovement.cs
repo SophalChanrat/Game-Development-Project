@@ -34,6 +34,8 @@ public class PlayerMovement3D : MonoBehaviour
     [Header("Attack Settings")]
     public float attackCooldown = 0.5f;
     private float lastAttackTime = -999f;
+    private float attackRange;
+    public int attackDamage = 25;
 
     void Awake()
     {
@@ -162,5 +164,21 @@ public class PlayerMovement3D : MonoBehaviour
 
         // If using hitbox:
         // EnableHitbox();
+    }
+
+    void DealDamageToEnemies()
+    {
+        // Find all colliders in attack range on enemy layer
+        Collider[] hitEnemies = Physics.OverlapSphere(transform.position, attackRange, groundMask);
+
+        foreach (Collider enemy in hitEnemies)
+        {
+            EnemyAI enemyAi = enemy.GetComponent<EnemyAI>();
+            if (enemyAi != null)
+            {
+                enemyAi.TakeDamage(attackDamage);
+                continue;
+            }
+        }
     }
 }
