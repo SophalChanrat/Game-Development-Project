@@ -15,7 +15,6 @@ public class EnemyAI : MonoBehaviour
     [Header("Detection")]
     public float detectionRange = 10f;
     public float attackRange = 2.5f;
-    public LayerMask playerLayer;
 
     [Header("Combat")]
     public float attackDamage = 30f;
@@ -110,25 +109,10 @@ public class EnemyAI : MonoBehaviour
 
     void CheckForPlayer(float distance)
     {
-        if (distance <= detectionRange && CanSeePlayer())
+        if (distance <= detectionRange)
         {
             currentState = State.Chasing;
         }
-    }
-
-    bool CanSeePlayer()
-    {
-        if (player == null) return false;
-
-        Vector3 directionToPlayer = player.position - transform.position;
-        RaycastHit hit;
-
-        if (Physics.Raycast(transform.position + Vector3.up, directionToPlayer.normalized, out hit, detectionRange))
-        {
-            return hit.transform == player;
-        }
-
-        return false;
     }
 
     void ChasePlayer(float distance)
