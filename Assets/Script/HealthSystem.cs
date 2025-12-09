@@ -1,9 +1,6 @@
 using UnityEngine;
 using UnityEngine.Events;
 
-/// <summary>
-/// Base health system that can be used for both players and enemies
-/// </summary>
 public class HealthSystem : MonoBehaviour
 {
     [Header("Health Settings")]

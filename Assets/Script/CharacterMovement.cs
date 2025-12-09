@@ -2,112 +2,237 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-[RequireComponent(typeof(Rigidbody))]
+
 public class PlayerMovement3D : MonoBehaviour
 {
     [Header("Movement Settings")]
     public float moveSpeed = 6f;
-    public float turnSmoothTime = 0.1f; // How long it takes to turn
-    public float speedSmoothTime = 0.1f; // How long it takes to reach max speed
+    public float turnSmoothTime = 0.1f;
+    public float speedSmoothTime = 0.1f;
     private bool isMoving;
-    public float jumpForce = 6f;
-    private bool isJumping = false; // Prevents jump spam
-    public float jumpCooldown = 0.5f; // Time after landing before can jump again
+    public float jumpHeight = 6f;
+    public float gravity = -9.81f;
 
     [Header("References")]
-    public Transform camTransform; // Drag your Main Camera here
-    public float groundDistance = 0.3f;
+    public Transform camTransform;
+    public Transform groundCheck;
+    public float groundDistance = 0.2f;
     public LayerMask groundMask;
 
-    private Rigidbody rb;
+    [Header("Lock On")]
+    private CinemachineLockOn lockOnScript;
+
+    private CharacterController controller;
     private Vector2 moveInput;
-    private Vector3 currentVelocity; // Ref variable for SmoothDamp
-    private Vector3 smoothVelocityXZ;
-    private float turnSmoothVelocity; // Ref variable for rotation
+    private Vector3 velocity;
+    private float currentSpeed;
+    private float speedSmoothVelocity;
+    private float turnSmoothVelocity;
     private bool isGrounded;
-    private bool wasGrounded;
     Animator animator;
     
     [Header("Dash Settings")]
-    public float dashForce = 20f;
+    public float dashSpeed = 20f;
     public float dashDuration = 0.2f;
     public float dashCooldown = 1f;
     private bool isDashing = false;
     private float lastDashTime = -999f;
+    private Vector3 dashDirection;
 
     [Header("Attack Settings")]
+    public int attackDamage = 25;
+    public float attackRange = 2f;
     public float attackCooldown = 0.5f;
-    private float lastAttackTime = -999f;
-    
-    private PlayerAttackSystem attackSystem;
-    private PlayerSkillSystem skillSystem;
+    public LayerMask enemyLayer;
+    private bool isAttacking = false;
 
     void Awake()
     {
-        rb = GetComponent<Rigidbody>();
+        controller = GetComponent<CharacterController>();
         animator = GetComponent<Animator>();
-        attackSystem = GetComponent<PlayerAttackSystem>();
-        skillSystem = GetComponent<PlayerSkillSystem>();
+        lockOnScript = GetComponent<CinemachineLockOn>();
 
-        // Safety check: if camera isn't assigned, use the main one
         if (camTransform == null && Camera.main != null)
         {
             camTransform = Camera.main.transform;
         }
 
-        // Optional: Freeze Rotation prevents physics objects from tipping the player over
-        rb.freezeRotation = true;
-    }
-
-    private void FixedUpdate()
-    {
-        wasGrounded = isGrounded;
-        CheckGround();
-        
-        // Reset jump flag when landing
-        if (isGrounded && !wasGrounded)
+        // Create ground check position if it doesn't exist
+        if (groundCheck == null)
         {
-            StartCoroutine(ResetJumpAfterDelay());
+            GameObject groundCheckObj = new GameObject("GroundCheck");
+            groundCheck = groundCheckObj.transform;
+            groundCheck.parent = transform;
+            groundCheck.localPosition = new Vector3(0, 0, 0);
         }
-        
-        MovePlayer();
+    }
+    private void Start()
+    {
+        Cursor.lockState = CursorLockMode.Locked;
     }
 
-    private IEnumerator ResetJumpAfterDelay()
+    private void Update()
     {
-        yield return new WaitForSeconds(jumpCooldown);
-        isJumping = false;
+        CheckGround();
+        ApplyGravity();
+        
+        // Only allow movement if not attacking
+        if (!isAttacking)
+        {
+            MovePlayer();
+        }
+        else
+        {
+            FaceLockedTargetIfAvailable();
+        }
+    }
+
+    private void CheckGround()
+    {
+        // Use both built-in and sphere check for more reliable ground detection
+        bool controllerGrounded = controller.isGrounded;
+        bool sphereGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
+        
+        isGrounded = controllerGrounded || sphereGrounded;
+    }
+
+    private void ApplyGravity()
+    {
+        if (isGrounded && velocity.y < 0)
+        {
+            velocity.y = -2f; // Small negative value to keep player grounded
+        }
+        else
+        {
+            velocity.y += gravity * Time.deltaTime;
+        }
     }
 
     private void MovePlayer()
     {
-        if (isDashing) return;
-        if (moveInput.magnitude < 0.1f)
-        {
-            // Only slow down XZ, do NOT affect Y
-            Vector3 stopXZ = Vector3.SmoothDamp(new Vector3(rb.velocity.x, 0, rb.velocity.z),
-                                                Vector3.zero,
-                                                ref smoothVelocityXZ,
-                                                speedSmoothTime);
+        Vector3 moveDirection = Vector3.zero;
 
-            rb.velocity = new Vector3(stopXZ.x, rb.velocity.y, stopXZ.z);
+        if (isDashing)
+        {
+            moveDirection = dashDirection * dashSpeed;
+            moveDirection.y = velocity.y;
+            controller.Move(moveDirection * Time.deltaTime);
             return;
         }
 
-        float targetAngle = Mathf.Atan2(moveInput.x, moveInput.y) * Mathf.Rad2Deg + camTransform.eulerAngles.y;
-        float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, turnSmoothTime);
-        transform.rotation = Quaternion.Euler(0f, angle, 0f);
+        if (moveInput.magnitude >= 0.1f)
+        {
+            // Check if locked on - use strafe movement
+            if (lockOnScript != null && lockOnScript.IsLockedOn())
+            {
+                Transform target = lockOnScript.GetCurrentTarget();
+                if (target != null)
+                {
+                    // Strafe movement relative to target
+                    Vector3 toTarget = (target.position - transform.position).normalized;
+                    toTarget.y = 0;
 
-        Vector3 moveDir = Quaternion.Euler(0, targetAngle, 0) * Vector3.forward;
-        Vector3 targetXZ = moveDir.normalized * moveSpeed;
+                    // Right vector perpendicular to target direction
+                    Vector3 right = Vector3.Cross(Vector3.up, toTarget).normalized;
 
-        // Smooth only XZ (DON'T TOUCH Y)
-        Vector3 newXZ = Vector3.SmoothDamp(new Vector3(rb.velocity.x, 0, rb.velocity.z),
-                                           targetXZ,
-                                           ref smoothVelocityXZ,
-                                           speedSmoothTime);
+                    // Calculate strafe direction
+                    // Forward/Back = toward/away from target
+                    // Left/Right = strafe around target
+                    Vector3 moveDir = toTarget * moveInput.y + right * moveInput.x;
 
-        rb.velocity = new Vector3(newXZ.x, rb.velocity.y, newXZ.z);
+                    float targetSpeed = moveSpeed * moveInput.magnitude;
+                    currentSpeed = Mathf.SmoothDamp(currentSpeed, targetSpeed, ref speedSmoothVelocity, speedSmoothTime);
+
+                    moveDirection = moveDir.normalized * currentSpeed;
+
+                    // Set animator parameters for locked-on movement
+                    if (animator != null)
+                    {
+                        // Check movement direction
+                        bool isWalkingBack = moveInput.y < -0.1f;
+                        bool isWalkingLeft = moveInput.x < -0.1f;
+                        bool isWalkingRight = moveInput.x > 0.1f;
+                        
+                        animator.SetBool("walkBack", isWalkingBack);
+                        animator.SetBool("walkLeft", isWalkingLeft);
+                        animator.SetBool("walkRight", isWalkingRight);
+                        animator.SetBool("isMoving", true);
+                    }
+
+                    // Player rotation is handled by lock-on system, don't override it here
+                }
+            }
+            else
+            {
+                // Normal camera-relative movement (not locked on)
+                Vector3 cameraForward = camTransform.forward;
+                Vector3 cameraRight = camTransform.right;
+                cameraForward.y = 0;
+                cameraRight.y = 0;
+                cameraForward.Normalize();
+                cameraRight.Normalize();
+
+                Vector3 moveDir = cameraForward * moveInput.y + cameraRight * moveInput.x;
+
+                if (moveDir.magnitude >= 0.1f)
+                {
+                    // Calculate target rotation based on movement direction
+                    float targetAngle = Mathf.Atan2(moveDir.x, moveDir.z) * Mathf.Rad2Deg;
+
+                    // Smoothly rotate player to face movement direction
+                    float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, turnSmoothTime);
+                    transform.rotation = Quaternion.Euler(0f, angle, 0f);
+
+                    float targetSpeed = moveSpeed * moveInput.magnitude;
+                    currentSpeed = Mathf.SmoothDamp(currentSpeed, targetSpeed, ref speedSmoothVelocity, speedSmoothTime);
+
+                    moveDirection = moveDir.normalized * currentSpeed;
+                    
+                    // When not locked on, always walk forward (player rotates to face direction)
+                    if (animator != null)
+                    {
+                        animator.SetBool("walkBack", false);
+                        animator.SetBool("walkLeft", false);
+                        animator.SetBool("walkRight", false);
+                    }
+                }
+            }
+        }
+        else
+        {
+            currentSpeed = Mathf.SmoothDamp(currentSpeed, 0f, ref speedSmoothVelocity, speedSmoothTime);
+            
+            // Reset animator when not moving
+            if (animator != null)
+            {
+                animator.SetBool("walkBack", false);
+                animator.SetBool("walkLeft", false);
+                animator.SetBool("walkRight", false);
+            }
+        }
+
+        moveDirection.y = velocity.y;
+        controller.Move(moveDirection * Time.deltaTime);
+    }
+    private void FaceLockedTargetIfAvailable()
+    {
+        if (lockOnScript != null && lockOnScript.IsLockedOn())
+        {
+            Transform target = lockOnScript.GetCurrentTarget();
+            if (target != null)
+            {
+                // Calculate direction to target
+                Vector3 direction = target.position - transform.position;
+                direction.y = 0; // Keep rotation on horizontal plane
+
+                if (direction.magnitude > 0.1f)
+                {
+                    // Smoothly rotate to face target
+                    Quaternion targetRotation = Quaternion.LookRotation(direction);
+                    transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, 10f * Time.deltaTime);
+                }
+            }
+        }
     }
 
     // ---------------- INPUT EVENTS ---------------- //
@@ -117,88 +242,60 @@ public class PlayerMovement3D : MonoBehaviour
         moveInput = context.ReadValue<Vector2>();
         isMoving = moveInput != Vector2.zero;
 
-        if (animator != null)
+        if (animator != null && !isAttacking)
         {
             animator.SetBool("isMoving", isMoving);
         }
     }
-    
-    private void CheckGround()
-    {
-        // Check if grounded using a small sphere at player's feet
-        Vector3 origin = transform.position;
-        
-        // Try with layer mask first
-        if (groundMask.value != 0)
-        {
-            isGrounded = Physics.CheckSphere(origin, groundDistance, groundMask);
-        }
-        else
-        {
-            // Fallback: check without layer mask (checks all layers)
-            isGrounded = Physics.Raycast(origin, Vector3.down, groundDistance + 0.1f);
-        }
-        
-        // Update animator
-        if (animator != null)
-        {
-            animator.SetBool("isGrounded", isGrounded);
-        }
-    }
-    
+
     public void OnJump(InputAction.CallbackContext context)
     {
-        if (context.started && isGrounded && !isJumping)
+        if (context.started && isGrounded && !isAttacking)
         {
-            isJumping = true;
-            rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z); // Reset vertical velocity before jump
-            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-            
+            velocity.y = Mathf.Sqrt(jumpHeight * 2f * -gravity);
             if (animator != null)
             {
                 animator.SetTrigger("isJump");
             }
         }
     }
-    
+
     public void OnDash(InputAction.CallbackContext context)
     {
         if (!context.started) return;
-
-        // Can only dash on ground OR in air? (your choice)
+        if (isAttacking) return;
         if (Time.time < lastDashTime + dashCooldown) return;
         if (isDashing) return;
 
         StartCoroutine(Dash());
     }
-    
+
     private IEnumerator Dash()
     {
         isDashing = true;
         lastDashTime = Time.time;
-        
-        Vector3 dashDir;
 
         if (moveInput.sqrMagnitude > 0.1f)
         {
-            // Convert WASD to world direction using camera
-            float targetAngle = Mathf.Atan2(moveInput.x, moveInput.y) * Mathf.Rad2Deg
-                                + camTransform.eulerAngles.y;
+            // Dash in the direction relative to camera
+            Vector3 cameraForward = camTransform.forward;
+            Vector3 cameraRight = camTransform.right;
+            cameraForward.y = 0;
+            cameraRight.y = 0;
+            cameraForward.Normalize();
+            cameraRight.Normalize();
 
-            dashDir = Quaternion.Euler(0, targetAngle, 0) * Vector3.forward;
+            dashDirection = (cameraForward * moveInput.y + cameraRight * moveInput.x).normalized;
         }
         else
         {
-            // If player is not moving -> dash forward
-            dashDir = transform.forward;
+            // If not moving, dash in the direction player is facing
+            dashDirection = transform.forward;
         }
 
-        dashDir.Normalize();
+        dashDirection.y = 0;
+        dashDirection.Normalize();
 
-        // Apply dash force
-        rb.velocity = new Vector3(dashDir.x * dashForce, rb.velocity.y, dashDir.z * dashForce);
-        
-        // Wait for dash duration
         yield return new WaitForSeconds(dashDuration);
         
         isDashing = false;
@@ -207,51 +304,77 @@ public class PlayerMovement3D : MonoBehaviour
     public void OnAttack(InputAction.CallbackContext context)
     {
         if (!context.started) return;
+        if (isAttacking) return;
 
-        // Use the attack system if available
-        if (attackSystem != null)
-        {
-            attackSystem.PerformAttack();
-        }
-        else
-        {
-            // Fallback to old behavior
-            if (Time.time < lastAttackTime + attackCooldown) return;
-            lastAttackTime = Time.time;
+        Attack();
+    }
 
-            if (animator != null)
-                animator.SetTrigger("attack");
+    void Attack()
+    {
+        isAttacking = true;
+        if(lockOnScript != null && lockOnScript.IsLockedOn())
+        {
+            Transform target = lockOnScript.GetCurrentTarget();
+            if (target != null)
+            {
+                Vector3 direction = target.position - transform.position;
+                direction.y = 0; // Keep rotation on horizontal plane
+                if(direction.magnitude > 0.1f){
+                    transform.rotation = Quaternion.LookRotation(direction);
+                }
+            }
+        }
+
+        if (animator != null)
+        {
+            animator.SetTrigger("attack");
+            animator.SetBool("isMoving", false); // Stop movement animation
+        }
+
+        // Wait for attack animation to finish
+        StartCoroutine(AttackCoroutine());
+    }
+
+    IEnumerator AttackCoroutine()
+    {
+        // Wait a bit for the attack animation to reach the hit point
+        yield return new WaitForSeconds(0.3f);
+        
+        // Detect and damage enemies in range
+        DealDamageToEnemies();
+        
+        // Wait for rest of attack animation to finish
+        yield return new WaitForSeconds(attackCooldown - 0.3f);
+
+        isAttacking = false;
+    }
+
+    void DealDamageToEnemies()
+    {
+        // Find all colliders in attack range on enemy layer
+        Collider[] hitEnemies = Physics.OverlapSphere(transform.position, attackRange, enemyLayer);
+
+        foreach (Collider enemy in hitEnemies)
+        {
+            EnemyAI enemyAi = enemy.GetComponent<EnemyAI>();
+            if (enemyAi != null)
+            {
+                enemyAi.TakeDamage(attackDamage);
+            }
         }
     }
-    
-    // Skill Input Actions
-    public void OnSkill1(InputAction.CallbackContext context)
+
+    // Visual debugging
+    private void OnDrawGizmosSelected()
     {
-        if (!context.started) return;
-        
-        if (skillSystem != null)
+        if (groundCheck != null)
         {
-            skillSystem.UseSkill(skillSystem.skill1, 1);
+            Gizmos.color = isGrounded ? Color.green : Color.red;
+            Gizmos.DrawWireSphere(groundCheck.position, groundDistance);
         }
-    }
-    
-    public void OnSkill2(InputAction.CallbackContext context)
-    {
-        if (!context.started) return;
-        
-        if (skillSystem != null)
-        {
-            skillSystem.UseSkill(skillSystem.skill2, 2);
-        }
-    }
-    
-    public void OnSkill3(InputAction.CallbackContext context)
-    {
-        if (!context.started) return;
-        
-        if (skillSystem != null)
-        {
-            skillSystem.UseSkill(skillSystem.skill3, 3);
-        }
+
+        // Visualize attack range
+        Gizmos.color = Color.blue;
+        Gizmos.DrawWireSphere(transform.position, attackRange);
     }
 }

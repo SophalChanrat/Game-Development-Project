@@ -1,376 +1,304 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
 
-/// <summary>
-/// AI Controller for Goblin enemy with detection, chase, and attack behaviors
-/// Requires: NavMeshAgent, EnemyHealth components
-/// </summary>
-[RequireComponent(typeof(NavMeshAgent))]
-[RequireComponent(typeof(EnemyHealth))]
 public class EnemyAI : MonoBehaviour
 {
-    private enum AIState { Idle, Patrol, Chase, Attack, Dead }
-    [SerializeField] private AIState currentState = AIState.Idle;
+    [Header("Components")]
+    public NavMeshAgent agent;
+    public Animator animator;
+    private Transform player;
 
-    [Header("Detection Settings")]
-    [SerializeField] private float detectionRange = 10f;
-    [SerializeField] private float attackRange = 2f;
-    [SerializeField] private float loseTargetRange = 15f; // Stop chasing if player gets too far
-    [SerializeField] private LayerMask detectionLayers;
-    [SerializeField] private bool drawGizmos = true;
+    [Header("Health")]
+    public float health = 100f;
 
-    [Header("Movement Settings")]
-    [SerializeField] private float walkSpeed = 2f;
-    [SerializeField] private float chaseSpeed = 4f;
-    [SerializeField] private float rotationSpeed = 5f;
+    [Header("Detection")]
+    public float detectionRange = 10f;
+    public float attackRange = 2.5f;
 
-    [Header("Attack Settings")]
-    [SerializeField] private float attackCooldown = 2f;
-    [SerializeField] private float attackDamage = 10f;
-    [SerializeField] private GameObject attackHitbox; // Optional: Enable/disable attack hitbox
-    
-    [Header("Patrol Settings (Optional)")]
-    [SerializeField] private bool enablePatrol = false;
-    [SerializeField] private float patrolRadius = 10f;
-    [SerializeField] private float patrolWaitTime = 2f;
-    private Vector3 patrolStartPosition;
-    private float patrolWaitTimer = 0f;
-
-    [Header("References")]
-    [SerializeField] private Transform player;
-    private NavMeshAgent agent;
-    private EnemyHealth enemyHealth;
-    private Animator animator;
-    
-    private float lastAttackTime = -999f;
+    [Header("Combat")]
+    public float attackDamage = 30f;
+    public float attackCooldown = 2f;
+    [Tooltip("Time in attack animation when damage is dealt")]
+    public float attackHitTiming = 0.5f;
+    private float nextAttackTime = 0f;
     private bool isAttacking = false;
+    private bool isDead = false;
 
-    private void Awake()
+    [Header("Movement")]
+    public float chaseSpeed = 3.5f;
+    public float stoppingDistance = 2f;
+
+
+    // States
+    private enum State { Idle, Chasing, Attacking, Dead }
+    private State currentState = State.Idle;
+
+    // Animation parameter names
+    private const string ANIM_SPEED = "Speed";
+    private const string ANIM_ATTACK = "Attack";
+    private const string ANIM_DEATH = "Death";
+
+    void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
-        enemyHealth = GetComponent<EnemyHealth>();
         animator = GetComponent<Animator>();
-        
-        patrolStartPosition = transform.position;
-        
-        // Setup NavMeshAgent
-        agent.speed = walkSpeed;
-        agent.stoppingDistance = attackRange * 0.8f;
 
-        // Find player if not assigned
-        if (player == null)
+        // Find player
+        GameObject playerObj = GameObject.Find("PlayerObj");
+        if (playerObj == null)
+            playerObj = GameObject.FindGameObjectWithTag("Player");
+        if (playerObj == null)
+            playerObj = GameObject.Find("Player");
+
+        if (playerObj != null)
+            player = playerObj.transform;
+
+        // Ensure health is set
+        if (health <= 0)
+            health = 100f;
+
+        // Configure NavMeshAgent
+        if (agent != null)
         {
-            GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-            if (playerObj != null)
-            {
-                player = playerObj.transform;
-            }
+            agent.speed = chaseSpeed;
+            agent.stoppingDistance = stoppingDistance;
+            agent.updatePosition = true;
+            agent.updateRotation = false;
+            agent.baseOffset = 0f;
         }
 
-        // Subscribe to death event
-        if (enemyHealth != null)
+        // Disable root motion on animator to prevent floating
+        if (animator != null)
         {
-            enemyHealth.OnDeath.AddListener(OnDeath);
+            animator.applyRootMotion = false;
         }
     }
 
-    private void Update()
+    void Start()
     {
-        if (enemyHealth.IsDead() || currentState == AIState.Dead)
-        {
-            return;
-        }
+        currentState = State.Idle;
+        isDead = false;
+    }
 
-        // Update AI based on current state
+    void Update()
+    {
+        if (isDead || player == null)
+            return;
+
+        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
+
+        // State machine
         switch (currentState)
         {
-            case AIState.Idle:
-                UpdateIdleState();
+            case State.Idle:
+                CheckForPlayer(distanceToPlayer);
                 break;
-            case AIState.Patrol:
-                UpdatePatrolState();
+
+            case State.Chasing:
+                ChasePlayer(distanceToPlayer);
                 break;
-            case AIState.Chase:
-                UpdateChaseState();
-                break;
-            case AIState.Attack:
-                UpdateAttackState();
+
+            case State.Attacking:
+                AttackPlayer(distanceToPlayer);
                 break;
         }
 
-        // Update animator
         UpdateAnimator();
     }
 
-    private void UpdateIdleState()
+    void CheckForPlayer(float distance)
     {
-        // Check for player in detection range
-        if (CanSeePlayer())
+        if (distance <= detectionRange)
         {
-            ChangeState(AIState.Chase);
-            return;
-        }
-
-        // Switch to patrol if enabled
-        if (enablePatrol)
-        {
-            patrolWaitTimer += Time.deltaTime;
-            if (patrolWaitTimer >= patrolWaitTime)
-            {
-                ChangeState(AIState.Patrol);
-                patrolWaitTimer = 0f;
-            }
+            currentState = State.Chasing;
         }
     }
 
-    private void UpdatePatrolState()
+    void ChasePlayer(float distance)
     {
-        // Check for player
-        if (CanSeePlayer())
+        if (distance > detectionRange * 1.5f)
         {
-            ChangeState(AIState.Chase);
+            currentState = State.Idle;
+            if (agent != null && agent.enabled)
+                agent.SetDestination(transform.position);
             return;
         }
 
-        // Check if reached destination
-        if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
+        // Move towards player
+        if (agent != null && agent.enabled)
         {
-            ChangeState(AIState.Idle);
-            return;
+            agent.SetDestination(player.position);
         }
-
-        // If no destination, set a new patrol point
-        if (!agent.hasPath || agent.velocity.sqrMagnitude == 0f)
-        {
-            SetRandomPatrolPoint();
-        }
-    }
-
-    private void UpdateChaseState()
-    {
-        if (player == null)
-        {
-            ChangeState(AIState.Idle);
-            return;
-        }
-
-        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
-
-        // Check if player is too far
-        if (distanceToPlayer > loseTargetRange)
-        {
-            ChangeState(enablePatrol ? AIState.Patrol : AIState.Idle);
-            return;
-        }
-
-        // Check if in attack range
-        if (distanceToPlayer <= attackRange)
-        {
-            ChangeState(AIState.Attack);
-            return;
-        }
-
-        // Chase the player
-        agent.SetDestination(player.position);
-    }
-
-    private void UpdateAttackState()
-    {
-        if (player == null)
-        {
-            ChangeState(AIState.Idle);
-            return;
-        }
-
-        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
-
-        // Check if player moved out of attack range
-        if (distanceToPlayer > attackRange * 1.2f)
-        {
-            ChangeState(AIState.Chase);
-            return;
-        }
-
-        // Stop moving
-        agent.ResetPath();
 
         // Look at player
-        Vector3 lookDirection = (player.position - transform.position).normalized;
-        lookDirection.y = 0; // Keep rotation on Y axis only
-        if (lookDirection != Vector3.zero)
+        Vector3 lookDirection = player.position - transform.position;
+        lookDirection.y = 0;
+        if (lookDirection.magnitude > 0.1f)
         {
             Quaternion targetRotation = Quaternion.LookRotation(lookDirection);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, 5f * Time.deltaTime);
+        }
+
+        // Switch to attack if close enough
+        if (distance <= attackRange)
+        {
+            currentState = State.Attacking;
+            if (agent != null && agent.enabled)
+                agent.SetDestination(transform.position);
+        }
+    }
+
+    void AttackPlayer(float distance)
+    {
+        // If player moves away, chase again
+        if (distance > attackRange * 1.5f)
+        {
+            currentState = State.Chasing;
+            return;
+        }
+
+        // Look at player
+        Vector3 lookDirection = player.position - transform.position;
+        lookDirection.y = 0;
+        if (lookDirection.magnitude > 0.1f)
+        {
+            Quaternion targetRotation = Quaternion.LookRotation(lookDirection);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, 10f * Time.deltaTime);
         }
 
         // Attack if cooldown is ready
-        if (Time.time >= lastAttackTime + attackCooldown && !isAttacking)
+        if (Time.time >= nextAttackTime && !isAttacking)
         {
-            PerformAttack();
+            StartCoroutine(PerformAttack());
         }
     }
 
-    private void ChangeState(AIState newState)
-    {
-        if (currentState == newState) return;
-
-        // Exit current state
-        switch (currentState)
-        {
-            case AIState.Attack:
-                isAttacking = false;
-                break;
-        }
-
-        // Enter new state
-        currentState = newState;
-
-        switch (newState)
-        {
-            case AIState.Idle:
-                agent.ResetPath();
-                agent.speed = walkSpeed;
-                break;
-            case AIState.Patrol:
-                agent.speed = walkSpeed;
-                SetRandomPatrolPoint();
-                break;
-            case AIState.Chase:
-                agent.speed = chaseSpeed;
-                break;
-            case AIState.Attack:
-                agent.ResetPath();
-                break;
-        }
-
-        Debug.Log($"{gameObject.name} changed state to: {newState}");
-    }
-
-    private bool CanSeePlayer()
-    {
-        if (player == null) return false;
-
-        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
-        
-        if (distanceToPlayer <= detectionRange)
-        {
-            // Optional: Add line of sight check using raycast
-            Vector3 directionToPlayer = (player.position - transform.position).normalized;
-            
-            if (Physics.Raycast(transform.position + Vector3.up, directionToPlayer, out RaycastHit hit, detectionRange, detectionLayers))
-            {
-                if (hit.transform == player)
-                {
-                    return true;
-                }
-            }
-            
-            // If no layer mask, just use distance
-            if (detectionLayers.value == 0)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private void SetRandomPatrolPoint()
-    {
-        Vector3 randomDirection = Random.insideUnitSphere * patrolRadius;
-        randomDirection += patrolStartPosition;
-        randomDirection.y = transform.position.y; // Keep same height
-
-        NavMeshHit hit;
-        if (NavMesh.SamplePosition(randomDirection, out hit, patrolRadius, NavMesh.AllAreas))
-        {
-            agent.SetDestination(hit.position);
-        }
-    }
-
-    private void PerformAttack()
+    IEnumerator PerformAttack()
     {
         isAttacking = true;
-        lastAttackTime = Time.time;
 
-        // Trigger attack animation
         if (animator != null)
         {
-            animator.SetTrigger("Attack");
+            animator.SetTrigger(ANIM_ATTACK);
         }
 
-        // The actual damage dealing will be called from animation event or timer
-        Invoke(nameof(DealDamage), 0.5f); // Delay to sync with animation
+        yield return new WaitForSeconds(attackHitTiming);
+
+        if (!isDead)
+        {
+            float distanceToPlayer = Vector3.Distance(transform.position, player.position);
+            if (distanceToPlayer <= attackRange)
+            {
+                PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
+                if (playerHealth != null)
+                {
+                    playerHealth.TakeDamage(attackDamage);
+                }
+            }
+        }
+
+        yield return new WaitForSeconds(1f - attackHitTiming);
+
+        nextAttackTime = Time.time + attackCooldown;
+        isAttacking = false;
     }
 
-    // Called during attack animation or after delay
-    private void DealDamage()
+    public void OnAttackHit()
     {
-        if (player == null) return;
+        if (isDead || player == null) return;
 
         float distanceToPlayer = Vector3.Distance(transform.position, player.position);
-        
         if (distanceToPlayer <= attackRange)
         {
             PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
             if (playerHealth != null)
             {
                 playerHealth.TakeDamage(attackDamage);
-                Debug.Log($"{gameObject.name} damaged player for {attackDamage}!");
             }
         }
-
-        isAttacking = false;
     }
 
-    private void OnDeath()
+    void UpdateAnimator()
     {
-        currentState = AIState.Dead;
-        agent.enabled = false;
-        
-        if (animator != null)
+        if (animator == null || isDead)
+            return;
+
+        float speed = 0f;
+
+        if (agent != null && agent.enabled)
         {
-            animator.SetTrigger("Death");
+            speed = agent.velocity.magnitude / agent.speed;
+            speed = Mathf.Clamp01(speed);
+        }
+
+        if (currentState == State.Attacking)
+        {
+            speed = 0f;
+        }
+
+        animator.SetFloat(ANIM_SPEED, speed);
+    }
+
+    public void TakeDamage(int damage)
+    {
+        if (isDead)
+            return;
+
+        health -= damage;
+
+        if (currentState == State.Idle)
+        {
+            currentState = State.Chasing;
+        }
+
+        if (health <= 0)
+        {
+            Die();
         }
     }
 
-    private void UpdateAnimator()
+    void Die()
     {
-        if (animator == null) return;
+        if (isDead) return;
+        
+        isDead = true;
+        currentState = State.Dead;
 
-        // Update movement speed for blend tree
-        float speed = agent.velocity.magnitude;
-        animator.SetFloat("Speed", speed);
+        if (agent != null)
+        {
+            agent.isStopped = true;
+            agent.enabled = false;
+        }
+
+        StopAllCoroutines();
+
+        if (animator != null)
+        {
+            animator.SetFloat(ANIM_SPEED, 0);
+            animator.ResetTrigger(ANIM_ATTACK);
+            animator.SetTrigger(ANIM_DEATH);
+        }
+
+        Collider col = GetComponent<Collider>();
+        if (col != null)
+        {
+            col.enabled = false;
+        }
+
+        Destroy(gameObject, 3f);
+    }
+    public bool IsDead()
+    {
+        return isDead;
     }
 
-    private void OnDrawGizmosSelected()
+    void OnDrawGizmosSelected()
     {
-        if (!drawGizmos) return;
-
-        // Detection range (yellow)
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, detectionRange);
 
-        // Attack range (red)
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, attackRange);
-
-        // Lose target range (gray)
-        Gizmos.color = Color.gray;
-        Gizmos.DrawWireSphere(transform.position, loseTargetRange);
-
-        // Patrol radius (blue)
-        if (enablePatrol)
-        {
-            Gizmos.color = Color.blue;
-            Gizmos.DrawWireSphere(patrolStartPosition, patrolRadius);
-        }
-
-        // Line to player
-        if (player != null)
-        {
-            Gizmos.color = CanSeePlayer() ? Color.green : Color.red;
-            Gizmos.DrawLine(transform.position + Vector3.up, player.position + Vector3.up);
-        }
     }
 }

@@ -1,8 +1,5 @@
 using UnityEngine;
 
-/// <summary>
-/// Player-specific health system with additional features
-/// </summary>
 public class PlayerHealth : HealthSystem
 {
     [Header("Player Specific")]

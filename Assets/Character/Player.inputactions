@@ -53,7 +53,7 @@
                 {
                     "name": "Skill1",
                     "type": "Button",
-                    "id": "90620b06-1eab-491c-9491-ba4597e15da3",
+                    "id": "afa01ce6-a129-4cda-8ded-324fc4e610d5",
                     "expectedControlType": "Button",
                     "processors": "",
                     "interactions": "",
@@ -62,7 +62,7 @@
                 {
                     "name": "Skill2",
                     "type": "Button",
-                    "id": "9b4d6a90-8acc-4b0c-b04e-2c469edd522f",
+                    "id": "b0b2302f-3695-4451-8c5b-a20b60114ded",
                     "expectedControlType": "Button",
                     "processors": "",
                     "interactions": "",
@@ -71,7 +71,34 @@
                 {
                     "name": "Skill3",
                     "type": "Button",
-                    "id": "3ca31f6a-e7e6-48b6-9f18-f3b27b569c3e",
+                    "id": "8336d362-7ca0-4b82-b499-451f397c5fa8",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "LockOn",
+                    "type": "Button",
+                    "id": "a4b81de4-d11d-4b36-a032-2a84af4e63ad",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "SwitchTargetLeft",
+                    "type": "Button",
+                    "id": "66cb07a8-af5e-4478-acc9-a0eef7bb0002",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "SwitchTargetRight",
+                    "type": "Button",
+                    "id": "97c86380-3b79-43f5-b8ce-fb24ccbaa36b",
                     "expectedControlType": "Button",
                     "processors": "",
                     "interactions": "",
@@ -312,17 +339,6 @@
                 },
                 {
                     "name": "",
-                    "id": "31792893-6e4f-41cf-92c0-721dfc78fa58",
-                    "path": "<Keyboard>/l",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "",
-                    "action": "Jump",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
                     "id": "05a91659-11a1-4246-99d4-f2e3cfcf64c1",
                     "path": "<Keyboard>/leftShift",
                     "interactions": "",
@@ -334,34 +350,67 @@
                 },
                 {
                     "name": "",
-                    "id": "85343206-2c2d-41ee-add1-e0b92db44f06",
-                    "path": "<Keyboard>/q",
+                    "id": "64a172b3-b593-4fde-a97f-3f9d47804ba2",
+                    "path": "<Keyboard>/e",
                     "interactions": "",
                     "processors": "",
-                    "groups": "",
+                    "groups": "Keyboard&Mouse",
                     "action": "Skill1",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
                 {
                     "name": "",
-                    "id": "5b71d86f-23b0-4f46-997f-56cb444798ad",
-                    "path": "<Keyboard>/e",
+                    "id": "79ae879b-5694-4c20-b816-194eafacdb45",
+                    "path": "<Keyboard>/q",
                     "interactions": "",
                     "processors": "",
-                    "groups": "",
+                    "groups": "Keyboard&Mouse",
                     "action": "Skill2",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
                 {
                     "name": "",
-                    "id": "d51581bb-96da-492e-a5e0-9bad7abfa386",
+                    "id": "53e97fb2-7916-4bb6-b31d-34e02d803bdd",
                     "path": "<Keyboard>/r",
                     "interactions": "",
                     "processors": "",
-                    "groups": "",
+                    "groups": "Keyboard&Mouse",
                     "action": "Skill3",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "5eea49ff-69c5-4bef-8868-d723957f6fb3",
+                    "path": "<Mouse>/middleButton",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "LockOn",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "6251b879-5251-4571-ada7-07b4b35dd496",
+                    "path": "<Keyboard>/n",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "SwitchTargetLeft",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "5b044baa-f71e-42c5-9fc8-e550d7ac4778",
+                    "path": "<Keyboard>/m",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "SwitchTargetRight",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }
