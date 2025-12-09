@@ -19,6 +19,9 @@ public class PlayerMovement3D : MonoBehaviour
     public float groundDistance = 0.2f;
     public LayerMask groundMask;
 
+    [Header("Lock On")]
+    private CinemachineLockOn lockOnScript;
+
     private CharacterController controller;
     private Vector2 moveInput;
     private Vector3 velocity;
@@ -47,6 +50,7 @@ public class PlayerMovement3D : MonoBehaviour
     {
         controller = GetComponent<CharacterController>();
         animator = GetComponent<Animator>();
+        lockOnScript = GetComponent<CinemachineLockOn>();
 
         if (camTransform == null && Camera.main != null)
         {
@@ -62,6 +66,10 @@ public class PlayerMovement3D : MonoBehaviour
             groundCheck.localPosition = new Vector3(0, 0, 0);
         }
     }
+    private void Start()
+    {
+        Cursor.lockState = CursorLockMode.Locked;
+    }
 
     private void Update()
     {
@@ -72,6 +80,10 @@ public class PlayerMovement3D : MonoBehaviour
         if (!isAttacking)
         {
             MovePlayer();
+        }
+        else
+        {
+            FaceLockedTargetIfAvailable();
         }
     }
 
@@ -110,39 +122,117 @@ public class PlayerMovement3D : MonoBehaviour
 
         if (moveInput.magnitude >= 0.1f)
         {
-            // Get camera's forward and right directions (flattened to horizontal plane)
-            Vector3 cameraForward = camTransform.forward;
-            Vector3 cameraRight = camTransform.right;
-            cameraForward.y = 0;
-            cameraRight.y = 0;
-            cameraForward.Normalize();
-            cameraRight.Normalize();
-
-            // Calculate movement direction relative to camera
-            Vector3 moveDir = cameraForward * moveInput.y + cameraRight * moveInput.x;
-            
-            if (moveDir.magnitude >= 0.1f)
+            // Check if locked on - use strafe movement
+            if (lockOnScript != null && lockOnScript.IsLockedOn())
             {
-                // Calculate target rotation based on movement direction
-                float targetAngle = Mathf.Atan2(moveDir.x, moveDir.z) * Mathf.Rad2Deg;
-                
-                // Smoothly rotate player to face movement direction
-                float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, turnSmoothTime);
-                transform.rotation = Quaternion.Euler(0f, angle, 0f);
+                Transform target = lockOnScript.GetCurrentTarget();
+                if (target != null)
+                {
+                    // Strafe movement relative to target
+                    Vector3 toTarget = (target.position - transform.position).normalized;
+                    toTarget.y = 0;
 
-                float targetSpeed = moveSpeed * moveInput.magnitude;
-                currentSpeed = Mathf.SmoothDamp(currentSpeed, targetSpeed, ref speedSmoothVelocity, speedSmoothTime);
-                
-                moveDirection = moveDir.normalized * currentSpeed;
+                    // Right vector perpendicular to target direction
+                    Vector3 right = Vector3.Cross(Vector3.up, toTarget).normalized;
+
+                    // Calculate strafe direction
+                    // Forward/Back = toward/away from target
+                    // Left/Right = strafe around target
+                    Vector3 moveDir = toTarget * moveInput.y + right * moveInput.x;
+
+                    float targetSpeed = moveSpeed * moveInput.magnitude;
+                    currentSpeed = Mathf.SmoothDamp(currentSpeed, targetSpeed, ref speedSmoothVelocity, speedSmoothTime);
+
+                    moveDirection = moveDir.normalized * currentSpeed;
+
+                    // Set animator parameters for locked-on movement
+                    if (animator != null)
+                    {
+                        // Check movement direction
+                        bool isWalkingBack = moveInput.y < -0.1f;
+                        bool isWalkingLeft = moveInput.x < -0.1f;
+                        bool isWalkingRight = moveInput.x > 0.1f;
+                        
+                        animator.SetBool("walkBack", isWalkingBack);
+                        animator.SetBool("walkLeft", isWalkingLeft);
+                        animator.SetBool("walkRight", isWalkingRight);
+                        animator.SetBool("isMoving", true);
+                    }
+
+                    // Player rotation is handled by lock-on system, don't override it here
+                }
+            }
+            else
+            {
+                // Normal camera-relative movement (not locked on)
+                Vector3 cameraForward = camTransform.forward;
+                Vector3 cameraRight = camTransform.right;
+                cameraForward.y = 0;
+                cameraRight.y = 0;
+                cameraForward.Normalize();
+                cameraRight.Normalize();
+
+                Vector3 moveDir = cameraForward * moveInput.y + cameraRight * moveInput.x;
+
+                if (moveDir.magnitude >= 0.1f)
+                {
+                    // Calculate target rotation based on movement direction
+                    float targetAngle = Mathf.Atan2(moveDir.x, moveDir.z) * Mathf.Rad2Deg;
+
+                    // Smoothly rotate player to face movement direction
+                    float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, turnSmoothTime);
+                    transform.rotation = Quaternion.Euler(0f, angle, 0f);
+
+                    float targetSpeed = moveSpeed * moveInput.magnitude;
+                    currentSpeed = Mathf.SmoothDamp(currentSpeed, targetSpeed, ref speedSmoothVelocity, speedSmoothTime);
+
+                    moveDirection = moveDir.normalized * currentSpeed;
+                    
+                    // When not locked on, always walk forward (player rotates to face direction)
+                    if (animator != null)
+                    {
+                        animator.SetBool("walkBack", false);
+                        animator.SetBool("walkLeft", false);
+                        animator.SetBool("walkRight", false);
+                    }
+                }
             }
         }
         else
         {
             currentSpeed = Mathf.SmoothDamp(currentSpeed, 0f, ref speedSmoothVelocity, speedSmoothTime);
+            
+            // Reset animator when not moving
+            if (animator != null)
+            {
+                animator.SetBool("walkBack", false);
+                animator.SetBool("walkLeft", false);
+                animator.SetBool("walkRight", false);
+            }
         }
 
         moveDirection.y = velocity.y;
         controller.Move(moveDirection * Time.deltaTime);
+    }
+    private void FaceLockedTargetIfAvailable()
+    {
+        if (lockOnScript != null && lockOnScript.IsLockedOn())
+        {
+            Transform target = lockOnScript.GetCurrentTarget();
+            if (target != null)
+            {
+                // Calculate direction to target
+                Vector3 direction = target.position - transform.position;
+                direction.y = 0; // Keep rotation on horizontal plane
+
+                if (direction.magnitude > 0.1f)
+                {
+                    // Smoothly rotate to face target
+                    Quaternion targetRotation = Quaternion.LookRotation(direction);
+                    transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, 10f * Time.deltaTime);
+                }
+            }
+        }
     }
 
     // ---------------- INPUT EVENTS ---------------- //
@@ -222,7 +312,19 @@ public class PlayerMovement3D : MonoBehaviour
     void Attack()
     {
         isAttacking = true;
-        
+        if(lockOnScript != null && lockOnScript.IsLockedOn())
+        {
+            Transform target = lockOnScript.GetCurrentTarget();
+            if (target != null)
+            {
+                Vector3 direction = target.position - transform.position;
+                direction.y = 0; // Keep rotation on horizontal plane
+                if(direction.magnitude > 0.1f){
+                    transform.rotation = Quaternion.LookRotation(direction);
+                }
+            }
+        }
+
         if (animator != null)
         {
             animator.SetTrigger("attack");
