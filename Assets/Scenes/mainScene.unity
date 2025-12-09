@@ -5953,7 +5953,7 @@ MonoBehaviour:
   cameraRecenterSpeed: 2
   cameraTransform: {fileID: 0}
   lockOnIndicatorPrefab: {fileID: 2200080342411677406, guid: 0a31e55f3463a0849828d6fd5ffa1c83, type: 3}
-  indicatorOffset: {x: 0.2, y: 0.6, z: 0}
+  indicatorOffset: {x: 0.2, y: 1.5, z: 0}
 --- !u!1 &1961709312 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 2881377540962085355, guid: 516f5b8c780f050499e83e3e45588ae9, type: 3}
@@ -7381,11 +7381,11 @@ PrefabInstance:
       objectReference: {fileID: 1589245845}
     - target: {fileID: 5845252493466534483, guid: 79cddf7a665a04841a0c38c6fddc8c6a, type: 3}
       propertyPath: enemyLayer.m_Bits
-      value: 8
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5845252493466534483, guid: 79cddf7a665a04841a0c38c6fddc8c6a, type: 3}
       propertyPath: groundMask.m_Bits
-      value: 65
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5845252493466534483, guid: 79cddf7a665a04841a0c38c6fddc8c6a, type: 3}
       propertyPath: rotatePlayerWithCamera
