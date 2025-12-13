@@ -9611,7 +9611,7 @@ MonoBehaviour:
     hotkey: 0
     cooldownTime: 5
     cooldownTimer: 0
-    skillPrefab: {fileID: 17694082811351849, guid: 61c6e094319f8354283d8ec12ca020a7, type: 3}
+    skillPrefab: {fileID: 161766660727748596, guid: e9d0e29f9d4666c4fac512a338ed137e, type: 3}
     spawnOffset: {x: 0, y: 0, z: 0}
     prefabLifetime: 3
     destroyOnCast: 1
