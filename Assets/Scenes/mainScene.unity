@@ -11227,30 +11227,47 @@ MonoBehaviour:
     hotkey: 0
     cooldownTime: 3
     cooldownTimer: 0
+    useTwoStateAnimation: 1
+    castDuration: 0.5
+    castAnimationTrigger: castSkill
+    releaseAnimationTrigger: releaseSkill
     skillPrefab: {fileID: 161766660727748596, guid: e9d0e29f9d4666c4fac512a338ed137e, type: 3}
     spawnOffset: {x: 0, y: 0, z: 0}
     prefabLifetime: 3
     destroyOnCast: 1
+    lockMovementDuringCast: 1
   skill2:
     skillName: Meteor
     hotkey: 0
     cooldownTime: 5
     cooldownTimer: 0
+    useTwoStateAnimation: 1
+    castDuration: 0.5
+    castAnimationTrigger: castSkill
+    releaseAnimationTrigger: releaseSkill
     skillPrefab: {fileID: 7957833072274404953, guid: 00d68ad8e6252b64baeb982826fc1dab, type: 3}
     spawnOffset: {x: 0, y: 0, z: 0}
     prefabLifetime: 5
     destroyOnCast: 1
+    lockMovementDuringCast: 1
   skill3:
     skillName: Laser
     hotkey: 0
     cooldownTime: 10
     cooldownTimer: 0
+    useTwoStateAnimation: 1
+    castDuration: 0.5
+    castAnimationTrigger: castSkill
+    releaseAnimationTrigger: releaseSkill
     skillPrefab: {fileID: 7478731271839673279, guid: 35d5c82b80809cc49b448499d3188a02, type: 3}
     spawnOffset: {x: 0, y: 0, z: 0}
     prefabLifetime: 5
     destroyOnCast: 1
+    lockMovementDuringCast: 1
   showCooldownMessages: 1
+  useSharedAnimation: 1
   skillSpawnPoint: {fileID: 0}
+  animator: {fileID: 0}
 --- !u!114 &1905620051
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -11293,6 +11310,9 @@ MonoBehaviour:
   smoothHealthBar: 1
   healthBarLerpSpeed: 5
   invincibilityDuration: 0.5
+  playHitAnimation: 1
+  hitStunDuration: 0.3
+  animator: {fileID: 0}
 --- !u!1 &1913372325 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 2804321427668277467, guid: 0f3d14a9a6b2ceb469c15d151552a614, type: 3}
@@ -12977,6 +12997,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 871137466447928627, guid: 79cddf7a665a04841a0c38c6fddc8c6a, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: 958f3644abf3c0746ba0ffffe750efcd, type: 2}
     - target: {fileID: 910236416973427839, guid: 79cddf7a665a04841a0c38c6fddc8c6a, type: 3}
       propertyPath: m_IsTrigger
       value: 0
