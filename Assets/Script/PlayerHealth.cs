@@ -6,6 +6,7 @@ public class PlayerHealth : MonoBehaviour
 {
     public float maxHealth = 100f;
     public float currentHealth;
+    private Vector3 respawnPoint = new Vector3(63.47f, 3.093f, 63.09f);
 
     // Health bar UI - Image based
     public Image healthBarFill;      // The fill image (health)
@@ -135,7 +136,7 @@ public class PlayerHealth : MonoBehaviour
         if (controller != null)
         {
             controller.enabled = false;
-            transform.position = new Vector3(0f, 0f, 0f);
+            transform.position = respawnPoint;
             transform.rotation = Quaternion.identity;
             controller.enabled = true;
         }
