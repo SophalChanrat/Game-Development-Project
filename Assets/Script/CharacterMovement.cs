@@ -43,6 +43,8 @@ public class PlayerMovement3D : MonoBehaviour
     public int attackDamage = 25;
     public float attackRange = 2f;
     public float attackCooldown = 0.5f;
+    public Vector3 hitboxSize = new Vector3(1f, 1f, 1f);
+    public float hitboxForwardOffset = 1f;
     public LayerMask enemyLayer;
     private bool isAttacking = false;
 
@@ -300,6 +302,7 @@ public class PlayerMovement3D : MonoBehaviour
         
         isDashing = false;
     }
+
     
     public void OnAttack(InputAction.CallbackContext context)
     {
@@ -311,24 +314,28 @@ public class PlayerMovement3D : MonoBehaviour
 
     void Attack()
     {
+        if (isAttacking) return;
         isAttacking = true;
+        
+        // Face locked target if available
         if(lockOnScript != null && lockOnScript.IsLockedOn())
         {
             Transform target = lockOnScript.GetCurrentTarget();
             if (target != null)
             {
                 Vector3 direction = target.position - transform.position;
-                direction.y = 0; // Keep rotation on horizontal plane
+                direction.y = 0;
                 if(direction.magnitude > 0.1f){
                     transform.rotation = Quaternion.LookRotation(direction);
                 }
             }
         }
 
+        // Trigger attack animation
         if (animator != null)
         {
             animator.SetTrigger("attack");
-            animator.SetBool("isMoving", false); // Stop movement animation
+            animator.SetBool("isMoving", false);
         }
 
         // Wait for attack animation to finish
@@ -337,29 +344,39 @@ public class PlayerMovement3D : MonoBehaviour
 
     IEnumerator AttackCoroutine()
     {
-        // Wait a bit for the attack animation to reach the hit point
-        yield return new WaitForSeconds(0.3f);
-        
-        // Detect and damage enemies in range
-        DealDamageToEnemies();
-        
-        // Wait for rest of attack animation to finish
-        yield return new WaitForSeconds(attackCooldown - 0.3f);
-
+        // Wait for attack animation to finish based on cooldown
+        yield return new WaitForSeconds(attackCooldown);
         isAttacking = false;
     }
 
-    void DealDamageToEnemies()
+    
+    public void ApplyAttackDamage()
     {
-        // Find all colliders in attack range on enemy layer
-        Collider[] hitEnemies = Physics.OverlapSphere(transform.position, attackRange, enemyLayer);
+        PerformAttackHit();
+    }
 
+
+    // Actual damage logic
+    private void PerformAttackHit()
+    {
+        Vector3 hitboxPos = transform.position + transform.forward * hitboxForwardOffset;
+        
+        // Detect enemies in attack hitbox
+        Collider[] hitEnemies = Physics.OverlapBox(
+            hitboxPos,
+            hitboxSize / 2f,
+            transform.rotation,
+            enemyLayer
+        );
+
+        // Apply damage to all hit enemies
         foreach (Collider enemy in hitEnemies)
         {
             EnemyAI enemyAi = enemy.GetComponent<EnemyAI>();
             if (enemyAi != null)
             {
                 enemyAi.TakeDamage(attackDamage);
+                Debug.Log($"Hit {enemy.name} for {attackDamage} damage!");
             }
         }
     }
