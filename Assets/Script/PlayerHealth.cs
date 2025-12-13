@@ -1,79 +1,156 @@
+using System.Collections;
 using UnityEngine;
+using UnityEngine.UI;
 
-public class PlayerHealth : HealthSystem
+public class PlayerHealth : MonoBehaviour
 {
-    [Header("Player Specific")]
-    [SerializeField] private bool enableHealthRegeneration = false;
-    [SerializeField] private float healthRegenRate = 5f; // HP per second
-    [SerializeField] private float regenDelay = 3f; // Delay after taking damage
-    
-    private float timeSinceLastDamage = 0f;
-    private PlayerMovement3D playerMovement;
+    public float maxHealth = 100f;
+    public float currentHealth;
 
-    protected override void Awake()
+    // Health bar UI - Image based
+    public Image healthBarFill;      // The fill image (health)
+    public Image healthBarFrame;     // Optional frame/border image
+    
+    
+    // Optional: Smooth health bar animation
+    public bool smoothHealthBar = true;
+    public float healthBarLerpSpeed = 5f;
+    private float targetFillAmount;
+
+    // Damage feedback
+    public float invincibilityDuration = 0.5f;
+    private bool isInvincible = false;
+
+    void Start()
     {
-        base.Awake();
-        playerMovement = GetComponent<PlayerMovement3D>();
+        currentHealth = maxHealth;
+        targetFillAmount = 1f;
+
+        if (healthBarFill != null)
+        {
+            healthBarFill.fillAmount = 1f;
+            healthBarFill.type = Image.Type.Filled;
+            healthBarFill.fillMethod = Image.FillMethod.Horizontal;
+            healthBarFill.fillOrigin = (int)Image.OriginHorizontal.Left;
+        }
+        else
+        {
+            Debug.LogWarning("Health Bar Fill Image is not assigned on Player!");
+        }
+
+        if (healthBarFrame == null)
+        {
+            Debug.LogWarning("Health Bar Frame Image is not assigned on Player (optional)!");
+        }
+
+        UpdateHealthUI();
     }
 
-    protected override void Update()
+    void Update()
     {
-        base.Update();
-
-        // Handle health regeneration
-        if (enableHealthRegeneration && !isDead)
+        // Smoothly lerp the health bar fill amount
+        if (smoothHealthBar && healthBarFill != null)
         {
-            timeSinceLastDamage += Time.deltaTime;
+            healthBarFill.fillAmount = Mathf.Lerp(
+                healthBarFill.fillAmount, 
+                targetFillAmount, 
+                Time.deltaTime * healthBarLerpSpeed
+            );
+        }
+    }
+
+    public void TakeDamage(float damage)
+    {
+        // Ignore damage if invincible
+        if (isInvincible)
+            return;
+
+        currentHealth -= damage;
+        currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
+
+        Debug.Log("Player took " + damage + " damage! Health: " + currentHealth + "/" + maxHealth);
+
+        UpdateHealthUI();
+
+        if (currentHealth <= 0)
+        {
+            Die();
+        }
+        else
+        {
+            // Grant brief invincibility after taking damage
+            StartCoroutine(InvincibilityCoroutine());
+        }
+    }
+
+    private IEnumerator InvincibilityCoroutine()
+    {
+        isInvincible = true;
+        yield return new WaitForSeconds(invincibilityDuration);
+        isInvincible = false;
+    }
+
+    private void UpdateHealthUI()
+    {
+        if (healthBarFill != null)
+        {
+            float fillAmount = currentHealth / maxHealth;
             
-            if (timeSinceLastDamage >= regenDelay && currentHealth < maxHealth)
+            if (smoothHealthBar)
             {
-                Heal(healthRegenRate * Time.deltaTime);
+                targetFillAmount = fillAmount;
+            }
+            else
+            {
+                healthBarFill.fillAmount = fillAmount;
             }
         }
     }
 
-    public override void TakeDamage(float damage)
+    private void Die()
     {
-        base.TakeDamage(damage);
-        timeSinceLastDamage = 0f;
-        
-        // Optional: Add camera shake or screen effect here
-        Debug.Log($"Player took {damage} damage! Health: {currentHealth}/{maxHealth}");
-    }
-
-    protected override void Die()
-    {
-        base.Die();
-        
-        Debug.Log("Player has died!");
+        Debug.Log("Player has died! Game Over!");
         
         // Disable player movement
-        if (playerMovement != null)
+        CharacterController movement = GetComponent<CharacterController>();
+        if (movement != null)
         {
-            playerMovement.enabled = false;
+            movement.enabled = false;
         }
-        
-        // You can add respawn logic, game over screen, etc. here
-        // Example: Invoke("Respawn", 3f);
+
+        // Optional: Respawn after delay
+        StartCoroutine(RespawnCoroutine());
     }
 
-    private void Respawn()
+    private IEnumerator RespawnCoroutine()
     {
-        isDead = false;
+        yield return new WaitForSeconds(1f);
+
+        // Reset health
         currentHealth = maxHealth;
-        OnHealthChanged?.Invoke(currentHealth, maxHealth);
-        
-        if (playerMovement != null)
+        UpdateHealthUI();
+
+        // Reset position
+        CharacterController controller = GetComponent<CharacterController>();
+        if (controller != null)
         {
-            playerMovement.enabled = true;
+            controller.enabled = false;
+            transform.position = new Vector3(0f, 0f, 0f);
+            transform.rotation = Quaternion.identity;
+            controller.enabled = true;
         }
-        
+
         Debug.Log("Player respawned!");
     }
 
-    // Public method to trigger respawn from external scripts
-    public void TriggerRespawn()
+    // Public helper methods
+    public float GetHealthPercentage()
     {
-        Respawn();
+        return currentHealth / maxHealth;
+    }
+    
+    public bool IsInvincible()
+    {
+        return isInvincible;
     }
 }
