@@ -44140,6 +44140,7 @@ GameObject:
   - component: {fileID: 9114385727598248433}
   - component: {fileID: 5624702794641321676}
   - component: {fileID: 7302702699655706361}
+  - component: {fileID: 7701203761142294895}
   m_Layer: 0
   m_Name: Laser AOE
   m_TagString: Untagged
@@ -45009,7 +45010,7 @@ ParticleSystem:
     rateOverTime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 0
+      scalar: 15
       minScalar: 10
       maxCurve:
         serializedVersion: 2
@@ -49089,6 +49090,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bec344351e44b364e8e795dd2401a429, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  useParticleDamage: 1
+  useLegacyRadiusDamage: 0
   damage: 50
   radius: 3
   targetLayers:
@@ -49099,6 +49102,24 @@ MonoBehaviour:
   damageInterval: 0.5
   rotateOverTime: 0
   rotationSpeed: {x: 0, y: 100, z: 0}
+--- !u!114 &7701203761142294895
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7478731271839673279}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d189448849abce64b9bc2ef6bddc1a52, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  damagePerHit: 25
+  damageableLayers:
+    serializedVersion: 2
+    m_Bits: 8
+  preventMultipleHits: 1
+  hitCooldown: 0.1
 --- !u!1 &9063691487585404173
 GameObject:
   m_ObjectHideFlags: 0
