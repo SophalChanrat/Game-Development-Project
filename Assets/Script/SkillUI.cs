@@ -2,9 +2,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-/// <summary>
-/// Manages a single skill UI element with icon, cooldown overlay, and text
-/// </summary>
 public class SkillUI : MonoBehaviour
 {
     [Header("UI References")]
@@ -72,9 +69,6 @@ public class SkillUI : MonoBehaviour
         }
     }
     
-    /// <summary>
-    /// Sets the skill icon sprite
-    /// </summary>
     public void SetSkillIcon(Sprite icon)
     {
         if (skillIcon != null && icon != null)
@@ -83,9 +77,6 @@ public class SkillUI : MonoBehaviour
         }
     }
     
-    /// <summary>
-    /// Sets the hotkey text (Q, E, R, etc.)
-    /// </summary>
     public void SetHotkeyText(string hotkey)
     {
         if (hotkeyText != null && showHotkey)
@@ -95,9 +86,6 @@ public class SkillUI : MonoBehaviour
         }
     }
     
-    /// <summary>
-    /// Pulses the icon when skill is cast (optional visual feedback)
-    /// </summary>
     public void PlayCastAnimation()
     {
         // You can add animation here (scale pulse, color flash, etc.)
