@@ -471,11 +471,33 @@
                 },
                 {
                     "name": "",
+                    "id": "380e21d5-5214-4e28-950e-0fae7fd76628",
+                    "path": "<Gamepad>/rightStick/left",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "SwitchTargetLeft",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
                     "id": "5b044baa-f71e-42c5-9fc8-e550d7ac4778",
                     "path": "<Keyboard>/e",
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
+                    "action": "SwitchTargetRight",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "2726574a-eb5a-4e88-86d5-877c3f5bc25d",
+                    "path": "<Gamepad>/rightStick/right",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Gamepad",
                     "action": "SwitchTargetRight",
                     "isComposite": false,
                     "isPartOfComposite": false
