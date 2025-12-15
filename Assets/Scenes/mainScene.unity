@@ -2592,10 +2592,12 @@ MonoBehaviour:
   cooldownOverlay: {fileID: 1316845296}
   cooldownText: {fileID: 1846382880}
   hotkeyText: {fileID: 223496586}
+  rangeText: {fileID: 0}
   readyColor: {r: 1, g: 1, b: 1, a: 1}
   cooldownColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
   showCooldownText: 1
   showHotkey: 1
+  showRange: 0
 --- !u!1001 &403870328
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -9295,10 +9297,12 @@ MonoBehaviour:
   cooldownOverlay: {fileID: 2043915593}
   cooldownText: {fileID: 848590546}
   hotkeyText: {fileID: 367117892}
+  rangeText: {fileID: 0}
   readyColor: {r: 1, g: 1, b: 1, a: 1}
   cooldownColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
   showCooldownText: 1
   showHotkey: 1
+  showRange: 0
 --- !u!1 &1538244905 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 2241437581063234303, guid: 516f5b8c780f050499e83e3e45588ae9, type: 3}
@@ -12591,6 +12595,13 @@ MonoBehaviour:
     skillPrefab: {fileID: 161766660727748596, guid: e9d0e29f9d4666c4fac512a338ed137e, type: 3}
     spawnOffset: {x: 0, y: 0, z: 0}
     prefabLifetime: 3
+    useTargetedCast: 1
+    castRange: 10
+    groundLayer:
+      serializedVersion: 2
+      m_Bits: 64
+    faceTargetOnCast: 1
+    preferLockedTarget: 1
     destroyOnCast: 1
     lockMovementDuringCast: 1
   skill2:
@@ -12605,6 +12616,13 @@ MonoBehaviour:
     skillPrefab: {fileID: 7957833072274404953, guid: 00d68ad8e6252b64baeb982826fc1dab, type: 3}
     spawnOffset: {x: 0, y: 0, z: 0}
     prefabLifetime: 5
+    useTargetedCast: 1
+    castRange: 10
+    groundLayer:
+      serializedVersion: 2
+      m_Bits: 64
+    faceTargetOnCast: 1
+    preferLockedTarget: 1
     destroyOnCast: 1
     lockMovementDuringCast: 1
   skill3:
@@ -12619,12 +12637,20 @@ MonoBehaviour:
     skillPrefab: {fileID: 7478731271839673279, guid: 35d5c82b80809cc49b448499d3188a02, type: 3}
     spawnOffset: {x: 0, y: 0, z: 0}
     prefabLifetime: 5
+    useTargetedCast: 1
+    castRange: 10
+    groundLayer:
+      serializedVersion: 2
+      m_Bits: 64
+    faceTargetOnCast: 1
+    preferLockedTarget: 1
     destroyOnCast: 1
     lockMovementDuringCast: 1
   showCooldownMessages: 1
   useSharedAnimation: 1
   skillSpawnPoint: {fileID: 0}
   animator: {fileID: 0}
+  targetIndicatorPrefab: {fileID: 0}
 --- !u!114 &1905620051
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13429,10 +13455,12 @@ MonoBehaviour:
   cooldownOverlay: {fileID: 1993522635}
   cooldownText: {fileID: 470629295}
   hotkeyText: {fileID: 1094148070}
+  rangeText: {fileID: 0}
   readyColor: {r: 1, g: 1, b: 1, a: 1}
   cooldownColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
   showCooldownText: 1
   showHotkey: 1
+  showRange: 0
 --- !u!1 &2023191975 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 8272943599224061573, guid: 47b41978aba272c47ae5f4a2f7179c61, type: 3}

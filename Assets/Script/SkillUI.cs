@@ -9,14 +9,17 @@ public class SkillUI : MonoBehaviour
     public Image cooldownOverlay;        // Dark overlay when on cooldown
     public TextMeshProUGUI cooldownText; // Text showing remaining cooldown
     public TextMeshProUGUI hotkeyText;   // Text showing hotkey (Q, E, R)
+    public TextMeshProUGUI rangeText;    // Text showing skill range (optional)
     
     [Header("Visual Settings")]
     public Color readyColor = Color.white;
     public Color cooldownColor = new Color(0.5f, 0.5f, 0.5f, 1f);
     public bool showCooldownText = true;
     public bool showHotkey = true;
+    public bool showRange = false; // Toggle to show range text
     
     private bool isOnCooldown = false;
+    private float currentRange = 0f;
     
     void Start()
     {
@@ -29,6 +32,11 @@ public class SkillUI : MonoBehaviour
         if (cooldownText != null)
         {
             cooldownText.gameObject.SetActive(false);
+        }
+        
+        if (rangeText != null)
+        {
+            rangeText.gameObject.SetActive(showRange);
         }
     }
     
@@ -83,6 +91,20 @@ public class SkillUI : MonoBehaviour
         {
             hotkeyText.text = hotkey;
             hotkeyText.gameObject.SetActive(true);
+        }
+    }
+    
+    /// <summary>
+    /// Set and display the skill's cast range
+    /// </summary>
+    public void SetRangeText(float range)
+    {
+        currentRange = range;
+        
+        if (rangeText != null && showRange)
+        {
+            rangeText.text = range.ToString("F1") + "m";
+            rangeText.gameObject.SetActive(true);
         }
     }
     
