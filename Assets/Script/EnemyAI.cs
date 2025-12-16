@@ -288,6 +288,10 @@ public class EnemyAI : MonoBehaviour
 
         Destroy(gameObject, 3f);
     }
+    public bool IsDead()
+    {
+        return isDead;
+    }
 
     void OnDrawGizmosSelected()
     {
