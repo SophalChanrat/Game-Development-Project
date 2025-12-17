@@ -81,6 +81,7 @@ public class LumberjackAI : MonoBehaviour
     
     // Chase timer
     private float chaseTimer = 0f;
+    private bool hasNotifiedMusicManager = false; // Track if we've notified music manager
     
     // Debug timer
     private float debugTimer = 0f;
@@ -223,6 +224,13 @@ public class LumberjackAI : MonoBehaviour
                 currentState = State.ChasingPlayer;
                 chaseTimer = 0f;
                 isWandering = false;
+                
+                // Notify music manager that combat started
+                if (!hasNotifiedMusicManager && MusicManager.Instance != null)
+                {
+                    MusicManager.Instance.OnEnemyEnterCombat();
+                    hasNotifiedMusicManager = true;
+                }
                 return;
             }
         }
@@ -357,6 +365,13 @@ public class LumberjackAI : MonoBehaviour
             currentTargetTree = nearestTree;
             currentState = State.SeekingTree;
             chaseTimer = 0f;
+            
+            // Notify music manager that combat ended (returning to trees)
+            if (hasNotifiedMusicManager && MusicManager.Instance != null)
+            {
+                MusicManager.Instance.OnEnemyExitCombat();
+                hasNotifiedMusicManager = false;
+            }
             return;
         }
         
@@ -369,6 +384,13 @@ public class LumberjackAI : MonoBehaviour
             }
             chaseTimer = 0f;
             currentState = State.Idle;
+            
+            // Notify music manager that combat ended (chase timeout)
+            if (hasNotifiedMusicManager && MusicManager.Instance != null)
+            {
+                MusicManager.Instance.OnEnemyExitCombat();
+                hasNotifiedMusicManager = false;
+            }
             return;
         }
         
@@ -650,6 +672,13 @@ public class LumberjackAI : MonoBehaviour
         isDead = true;
         currentState = State.Dead;
         
+        // Notify music manager that combat ended (lumberjack died)
+        if (hasNotifiedMusicManager && MusicManager.Instance != null)
+        {
+            MusicManager.Instance.OnEnemyExitCombat();
+            hasNotifiedMusicManager = false;
+        }
+
         Debug.Log($"[LUMBERJACK] {gameObject.name} died!");
         
         // Stop agent
