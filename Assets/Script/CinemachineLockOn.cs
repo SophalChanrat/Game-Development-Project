@@ -228,10 +228,20 @@ public class CinemachineLockOn : MonoBehaviour
 
         foreach (Collider col in colliders)
         {
+            // Check for regular enemies
             EnemyAI enemy = col.GetComponent<EnemyAI>();
             if (enemy != null && !enemy.IsDead())
             {
                 nearbyEnemies.Add(col.transform);
+                continue;
+            }
+            
+            // Check for lumberjacks
+            LumberjackAI lumberjack = col.GetComponent<LumberjackAI>();
+            if (lumberjack != null && !lumberjack.IsDead())
+            {
+                nearbyEnemies.Add(col.transform);
+                continue;
             }
         }
 
@@ -271,8 +281,18 @@ public class CinemachineLockOn : MonoBehaviour
     {
         if (target == null) return false;
 
+        // Check regular enemy
         EnemyAI enemy = target.GetComponent<EnemyAI>();
-        if (enemy == null || enemy.IsDead()) return false;
+        if (enemy != null)
+        {
+            if (enemy.IsDead()) return false;
+        }
+        else
+        {
+            // Check lumberjack
+            LumberjackAI lumberjack = target.GetComponent<LumberjackAI>();
+            if (lumberjack == null || lumberjack.IsDead()) return false;
+        }
 
         float distance = Vector3.Distance(transform.position, target.position);
         if (distance > lockOnRange * 1.2f) return false;

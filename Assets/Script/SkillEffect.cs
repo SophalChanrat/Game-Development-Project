@@ -93,11 +93,20 @@ public class SkillEffect : MonoBehaviour
 
         foreach (Collider hit in hits)
         {
-            // Try to damage enemy
+            // Try to damage regular enemy
             EnemyAI enemy = hit.GetComponent<EnemyAI>();
             if (enemy != null)
             {
                 enemy.TakeDamage((int)damage);
+                continue;
+            }
+            
+            // Try to damage lumberjack
+            LumberjackAI lumberjack = hit.GetComponent<LumberjackAI>();
+            if (lumberjack != null)
+            {
+                lumberjack.TakeDamage((int)damage);
+                continue;
             }
         }
     }

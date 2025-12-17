@@ -59,12 +59,13 @@ public class ParticleDamage : MonoBehaviour
             }
         }
 
-        // Try to damage the target
+        // Calculate total damage
+        float totalDamage = damagePerHit * numCollisionEvents;
+
+        // Try to damage regular enemy
         EnemyAI enemy = other.GetComponent<EnemyAI>();
         if (enemy != null)
         {
-            // Deal damage based on number of particles that hit
-            float totalDamage = damagePerHit * numCollisionEvents;
             enemy.TakeDamage((int)totalDamage);
             
             // Update last hit time
@@ -72,6 +73,21 @@ public class ParticleDamage : MonoBehaviour
             {
                 lastHitTimes[other] = Time.time;
             }
+            return;
+        }
+        
+        // Try to damage lumberjack
+        LumberjackAI lumberjack = other.GetComponent<LumberjackAI>();
+        if (lumberjack != null)
+        {
+            lumberjack.TakeDamage((int)totalDamage);
+            
+            // Update last hit time
+            if (preventMultipleHits)
+            {
+                lastHitTimes[other] = Time.time;
+            }
+            return;
         }
     }
 
