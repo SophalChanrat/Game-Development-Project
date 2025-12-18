@@ -2,9 +2,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-/// <summary>
-/// Manages a single skill UI element with icon, cooldown overlay, and text
-/// </summary>
 public class SkillUI : MonoBehaviour
 {
     [Header("UI References")]
@@ -12,14 +9,17 @@ public class SkillUI : MonoBehaviour
     public Image cooldownOverlay;        // Dark overlay when on cooldown
     public TextMeshProUGUI cooldownText; // Text showing remaining cooldown
     public TextMeshProUGUI hotkeyText;   // Text showing hotkey (Q, E, R)
+    public TextMeshProUGUI rangeText;    // Text showing skill range (optional)
     
     [Header("Visual Settings")]
     public Color readyColor = Color.white;
     public Color cooldownColor = new Color(0.5f, 0.5f, 0.5f, 1f);
     public bool showCooldownText = true;
     public bool showHotkey = true;
+    public bool showRange = false; // Toggle to show range text
     
     private bool isOnCooldown = false;
+    private float currentRange = 0f;
     
     void Start()
     {
@@ -32,6 +32,11 @@ public class SkillUI : MonoBehaviour
         if (cooldownText != null)
         {
             cooldownText.gameObject.SetActive(false);
+        }
+        
+        if (rangeText != null)
+        {
+            rangeText.gameObject.SetActive(showRange);
         }
     }
     
@@ -72,9 +77,6 @@ public class SkillUI : MonoBehaviour
         }
     }
     
-    /// <summary>
-    /// Sets the skill icon sprite
-    /// </summary>
     public void SetSkillIcon(Sprite icon)
     {
         if (skillIcon != null && icon != null)
@@ -83,9 +85,6 @@ public class SkillUI : MonoBehaviour
         }
     }
     
-    /// <summary>
-    /// Sets the hotkey text (Q, E, R, etc.)
-    /// </summary>
     public void SetHotkeyText(string hotkey)
     {
         if (hotkeyText != null && showHotkey)
@@ -96,8 +95,19 @@ public class SkillUI : MonoBehaviour
     }
     
     /// <summary>
-    /// Pulses the icon when skill is cast (optional visual feedback)
+    /// Set and display the skill's cast range
     /// </summary>
+    public void SetRangeText(float range)
+    {
+        currentRange = range;
+        
+        if (rangeText != null && showRange)
+        {
+            rangeText.text = range.ToString("F1") + "m";
+            rangeText.gameObject.SetActive(true);
+        }
+    }
+    
     public void PlayCastAnimation()
     {
         // You can add animation here (scale pulse, color flash, etc.)

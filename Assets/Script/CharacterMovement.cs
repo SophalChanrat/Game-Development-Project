@@ -372,11 +372,22 @@ public class PlayerMovement3D : MonoBehaviour
         // Apply damage to all hit enemies
         foreach (Collider enemy in hitEnemies)
         {
+            // Try regular enemy AI first
             EnemyAI enemyAi = enemy.GetComponent<EnemyAI>();
             if (enemyAi != null)
             {
                 enemyAi.TakeDamage(attackDamage);
                 Debug.Log($"Hit {enemy.name} for {attackDamage} damage!");
+                continue;
+            }
+            
+            // Try lumberjack AI
+            LumberjackAI lumberjackAi = enemy.GetComponent<LumberjackAI>();
+            if (lumberjackAi != null)
+            {
+                lumberjackAi.TakeDamage(attackDamage);
+                Debug.Log($"Hit lumberjack {enemy.name} for {attackDamage} damage!");
+                continue;
             }
         }
     }
@@ -390,8 +401,19 @@ public class PlayerMovement3D : MonoBehaviour
             Gizmos.DrawWireSphere(groundCheck.position, groundDistance);
         }
 
-        // Visualize attack range
+        // Visualize attack hitbox (the actual attack box)
+        Gizmos.color = Color.red;
+        Vector3 hitboxPos = transform.position + transform.forward * hitboxForwardOffset;
+        Gizmos.matrix = Matrix4x4.TRS(hitboxPos, transform.rotation, Vector3.one);
+        Gizmos.DrawWireCube(Vector3.zero, hitboxSize);
+        Gizmos.matrix = Matrix4x4.identity;
+        
+        // Draw line showing forward direction
         Gizmos.color = Color.blue;
+        Gizmos.DrawLine(transform.position, transform.position + transform.forward * hitboxForwardOffset);
+        
+        // Draw sphere showing attack range (legacy, for reference)
+        Gizmos.color = new Color(0, 1, 0, 0.2f);
         Gizmos.DrawWireSphere(transform.position, attackRange);
     }
 }

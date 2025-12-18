@@ -24,6 +24,13 @@ public class Skill
     public Vector3 spawnOffset = Vector3.zero;
     public float prefabLifetime = 3f;
     
+    [Header("Cast Range")]
+    public bool useTargetedCast = true; // Enable/disable targeted casting
+    public float castRange = 10f; // Maximum distance skill can be cast
+    public LayerMask groundLayer; // Layer to raycast against for targeting
+    public bool faceTargetOnCast = true; // Should player face the target location?
+    public bool preferLockedTarget = true; // Prioritize locked enemy as target
+    
     [Header("Settings")]
     public bool destroyOnCast = true;
     public bool lockMovementDuringCast = true;
@@ -65,15 +72,25 @@ public class SkillSystem : MonoBehaviour
     public Transform skillSpawnPoint; // Optional: if null, uses player position
     public Animator animator;
     
+    [Header("Targeting")]
+    public GameObject targetIndicatorPrefab; // Visual indicator for target location
+    private GameObject targetIndicatorInstance;
+    private Vector3 currentTargetPosition;
+    private bool hasValidTarget = false;
+    
     [Header("References")]
     private PlayerMovement3D playerMovement;
+    private CinemachineLockOn lockOnSystem;
     private bool isCasting = false;
+    private Camera mainCamera;
 
     void Awake()
     {
         // Get references
         animator = GetComponent<Animator>();
         playerMovement = GetComponent<PlayerMovement3D>();
+        lockOnSystem = GetComponent<CinemachineLockOn>();
+        mainCamera = Camera.main;
         
         // Initialize skill names if not set
         if (string.IsNullOrEmpty(skill1.skillName)) skill1.skillName = "Skill 1";
@@ -122,7 +139,12 @@ public class SkillSystem : MonoBehaviour
     {
         if (context.started && !isCasting)
         {
-            StartCoroutine(CastSkillCoroutine(skill1));
+            if (GetTargetPosition(skill1, out Vector3 targetPos))
+            {
+                currentTargetPosition = targetPos;
+                hasValidTarget = true;
+                StartCoroutine(CastSkillCoroutine(skill1));
+            }
         }
     }
 
@@ -130,7 +152,12 @@ public class SkillSystem : MonoBehaviour
     {
         if (context.started && !isCasting)
         {
-            StartCoroutine(CastSkillCoroutine(skill2));
+            if (GetTargetPosition(skill2, out Vector3 targetPos))
+            {
+                currentTargetPosition = targetPos;
+                hasValidTarget = true;
+                StartCoroutine(CastSkillCoroutine(skill2));
+            }
         }
     }
 
@@ -138,7 +165,83 @@ public class SkillSystem : MonoBehaviour
     {
         if (context.started && !isCasting)
         {
-            StartCoroutine(CastSkillCoroutine(skill3));
+            if (GetTargetPosition(skill3, out Vector3 targetPos))
+            {
+                currentTargetPosition = targetPos;
+                hasValidTarget = true;
+                StartCoroutine(CastSkillCoroutine(skill3));
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Gets the target position for skill casting using raycast or locked target
+    /// </summary>
+    private bool GetTargetPosition(Skill skill, out Vector3 targetPosition)
+    {
+        targetPosition = transform.position;
+        
+        // If not using targeted cast, use player position
+        if (!skill.useTargetedCast)
+        {
+            return true;
+        }
+        
+        // PRIORITY 1: Check if player is locked onto an enemy
+        if (skill.preferLockedTarget && lockOnSystem != null && lockOnSystem.IsLockedOn())
+        {
+            Transform lockedTarget = lockOnSystem.GetCurrentTarget();
+            
+            if (lockedTarget != null)
+            {
+                // Check if locked target is within cast range
+                float distanceToTarget = Vector3.Distance(transform.position, lockedTarget.position);
+                
+                if (distanceToTarget <= skill.castRange)
+                {
+                    // Cast at the locked enemy's position
+                    targetPosition = lockedTarget.position;
+                    Debug.Log($"<color=cyan>[TARGET]</color> Casting {skill.skillName} on locked target: {lockedTarget.name}");
+                    return true;
+                }
+                else
+                {
+                    // Enemy is locked but out of range
+                    Debug.Log($"<color=yellow>[TARGET]</color> Locked enemy is out of range ({distanceToTarget:F1}m / {skill.castRange}m). Using ground target.");
+                    // Fall through to ground targeting
+                }
+            }
+        }
+        
+        // PRIORITY 2: Use ground targeting (raycast from camera)
+        Ray ray = mainCamera.ScreenPointToRay(new Vector3(Screen.width / 2f, Screen.height / 2f, 0f));
+        RaycastHit hit;
+        
+        if (Physics.Raycast(ray, out hit, 100f, skill.groundLayer))
+        {
+            Vector3 potentialTarget = hit.point;
+            
+            // Check if target is within cast range
+            float distanceToTarget = Vector3.Distance(transform.position, potentialTarget);
+            
+            if (distanceToTarget <= skill.castRange)
+            {
+                targetPosition = potentialTarget;
+                return true;
+            }
+            else
+            {
+                // Clamp to max range in the direction of the target
+                Vector3 directionToTarget = (potentialTarget - transform.position).normalized;
+                targetPosition = transform.position + directionToTarget * skill.castRange;
+                return true;
+            }
+        }
+        else
+        {
+            // If raycast doesn't hit, cast at max range in forward direction
+            targetPosition = transform.position + transform.forward * skill.castRange;
+            return true;
         }
     }
 
@@ -157,6 +260,18 @@ public class SkillSystem : MonoBehaviour
 
         // Mark as casting
         isCasting = true;
+        
+        // Face target location if enabled
+        if (skill.faceTargetOnCast && hasValidTarget && skill.useTargetedCast)
+        {
+            Vector3 directionToTarget = (currentTargetPosition - transform.position);
+            directionToTarget.y = 0; // Keep on horizontal plane
+            
+            if (directionToTarget.magnitude > 0.1f)
+            {
+                transform.rotation = Quaternion.LookRotation(directionToTarget);
+            }
+        }
 
         // Lock movement if enabled
         if (skill.lockMovementDuringCast && playerMovement != null)
@@ -227,6 +342,7 @@ public class SkillSystem : MonoBehaviour
             playerMovement.enabled = true;
         }
 
+        hasValidTarget = false;
         isCasting = false;
     }
 
@@ -236,13 +352,33 @@ public class SkillSystem : MonoBehaviour
         Vector3 spawnPosition;
         Quaternion spawnRotation;
 
-        if (skillSpawnPoint != null)
+        if (skill.useTargetedCast && hasValidTarget)
         {
+            // Spawn at target position
+            spawnPosition = currentTargetPosition + skill.spawnOffset;
+            
+            // Calculate rotation to face from player to target
+            Vector3 direction = (currentTargetPosition - transform.position);
+            direction.y = 0;
+            
+            if (direction.magnitude > 0.1f)
+            {
+                spawnRotation = Quaternion.LookRotation(direction);
+            }
+            else
+            {
+                spawnRotation = transform.rotation;
+            }
+        }
+        else if (skillSpawnPoint != null)
+        {
+            // Use spawn point
             spawnPosition = skillSpawnPoint.position + skill.spawnOffset;
             spawnRotation = skillSpawnPoint.rotation;
         }
         else
         {
+            // Use player position
             spawnPosition = transform.position + skill.spawnOffset;
             spawnRotation = transform.rotation;
         }
@@ -271,4 +407,51 @@ public class SkillSystem : MonoBehaviour
     public float GetSkill3CooldownPercentage() => skill3.GetCooldownPercentage();
     
     public bool IsCasting() => isCasting;
+    
+    // Visualize cast ranges in editor
+    private void OnDrawGizmosSelected()
+    {
+        if (!Application.isPlaying) return;
+        
+        // Draw skill 1 range
+        if (skill1.useTargetedCast)
+        {
+            Gizmos.color = new Color(1f, 0f, 0f, 0.2f);
+            Gizmos.DrawWireSphere(transform.position, skill1.castRange);
+        }
+        
+        // Draw skill 2 range
+        if (skill2.useTargetedCast)
+        {
+            Gizmos.color = new Color(0f, 1f, 0f, 0.2f);
+            Gizmos.DrawWireSphere(transform.position, skill2.castRange);
+        }
+        
+        // Draw skill 3 range
+        if (skill3.useTargetedCast)
+        {
+            Gizmos.color = new Color(0f, 0f, 1f, 0.2f);
+            Gizmos.DrawWireSphere(transform.position, skill3.castRange);
+        }
+        
+        // Draw current target position
+        if (hasValidTarget)
+        {
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(currentTargetPosition, 0.5f);
+            Gizmos.DrawLine(transform.position, currentTargetPosition);
+        }
+        
+        // Draw locked target if active
+        if (lockOnSystem != null && lockOnSystem.IsLockedOn())
+        {
+            Transform lockedTarget = lockOnSystem.GetCurrentTarget();
+            if (lockedTarget != null)
+            {
+                Gizmos.color = Color.magenta;
+                Gizmos.DrawWireSphere(lockedTarget.position, 0.75f);
+                Gizmos.DrawLine(transform.position, lockedTarget.position);
+            }
+        }
+    }
 }
