@@ -20,6 +20,9 @@ public class PlayerMovement3D : MonoBehaviour
     public float groundDistance = 0.2f;
     public LayerMask groundMask;
 
+    [Header("Lock On")]
+    private CinemachineLockOn lockOnScript;
+
     private CharacterController controller;
     private Vector2 moveInput;
     private Vector3 velocity;
@@ -41,6 +44,8 @@ public class PlayerMovement3D : MonoBehaviour
     public int attackDamage = 25;
     public float attackRange = 2f;
     public float attackCooldown = 0.5f;
+    public Vector3 hitboxSize = new Vector3(1f, 1f, 1f);
+    public float hitboxForwardOffset = 1f;
     public LayerMask enemyLayer;
     private bool isAttacking = false;
 
@@ -56,6 +61,7 @@ public class PlayerMovement3D : MonoBehaviour
     {
         controller = GetComponent<CharacterController>();
         animator = GetComponent<Animator>();
+        lockOnScript = GetComponent<CinemachineLockOn>();
 
         if (camTransform == null && Camera.main != null)
         {
@@ -71,6 +77,10 @@ public class PlayerMovement3D : MonoBehaviour
             groundCheck.localPosition = new Vector3(0, 0, 0);
         }
     }
+    private void Start()
+    {
+        Cursor.lockState = CursorLockMode.Locked;
+    }
 
     private void Update()
     {
@@ -81,6 +91,10 @@ public class PlayerMovement3D : MonoBehaviour
         if (!isAttacking && !isInteracting)
         {
             MovePlayer();
+        }
+        else
+        {
+            FaceLockedTargetIfAvailable();
         }
     }
 
@@ -119,39 +133,117 @@ public class PlayerMovement3D : MonoBehaviour
 
         if (moveInput.magnitude >= 0.1f)
         {
-            // Get camera's forward and right directions (flattened to horizontal plane)
-            Vector3 cameraForward = camTransform.forward;
-            Vector3 cameraRight = camTransform.right;
-            cameraForward.y = 0;
-            cameraRight.y = 0;
-            cameraForward.Normalize();
-            cameraRight.Normalize();
-
-            // Calculate movement direction relative to camera
-            Vector3 moveDir = cameraForward * moveInput.y + cameraRight * moveInput.x;
-            
-            if (moveDir.magnitude >= 0.1f)
+            // Check if locked on - use strafe movement
+            if (lockOnScript != null && lockOnScript.IsLockedOn())
             {
-                // Calculate target rotation based on movement direction
-                float targetAngle = Mathf.Atan2(moveDir.x, moveDir.z) * Mathf.Rad2Deg;
-                
-                // Smoothly rotate player to face movement direction
-                float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, turnSmoothTime);
-                transform.rotation = Quaternion.Euler(0f, angle, 0f);
+                Transform target = lockOnScript.GetCurrentTarget();
+                if (target != null)
+                {
+                    // Strafe movement relative to target
+                    Vector3 toTarget = (target.position - transform.position).normalized;
+                    toTarget.y = 0;
 
-                float targetSpeed = moveSpeed * moveInput.magnitude;
-                currentSpeed = Mathf.SmoothDamp(currentSpeed, targetSpeed, ref speedSmoothVelocity, speedSmoothTime);
-                
-                moveDirection = moveDir.normalized * currentSpeed;
+                    // Right vector perpendicular to target direction
+                    Vector3 right = Vector3.Cross(Vector3.up, toTarget).normalized;
+
+                    // Calculate strafe direction
+                    // Forward/Back = toward/away from target
+                    // Left/Right = strafe around target
+                    Vector3 moveDir = toTarget * moveInput.y + right * moveInput.x;
+
+                    float targetSpeed = moveSpeed * moveInput.magnitude;
+                    currentSpeed = Mathf.SmoothDamp(currentSpeed, targetSpeed, ref speedSmoothVelocity, speedSmoothTime);
+
+                    moveDirection = moveDir.normalized * currentSpeed;
+
+                    // Set animator parameters for locked-on movement
+                    if (animator != null)
+                    {
+                        // Check movement direction
+                        bool isWalkingBack = moveInput.y < -0.1f;
+                        bool isWalkingLeft = moveInput.x < -0.1f;
+                        bool isWalkingRight = moveInput.x > 0.1f;
+                        
+                        animator.SetBool("walkBack", isWalkingBack);
+                        animator.SetBool("walkLeft", isWalkingLeft);
+                        animator.SetBool("walkRight", isWalkingRight);
+                        animator.SetBool("isMoving", true);
+                    }
+
+                    // Player rotation is handled by lock-on system, don't override it here
+                }
+            }
+            else
+            {
+                // Normal camera-relative movement (not locked on)
+                Vector3 cameraForward = camTransform.forward;
+                Vector3 cameraRight = camTransform.right;
+                cameraForward.y = 0;
+                cameraRight.y = 0;
+                cameraForward.Normalize();
+                cameraRight.Normalize();
+
+                Vector3 moveDir = cameraForward * moveInput.y + cameraRight * moveInput.x;
+
+                if (moveDir.magnitude >= 0.1f)
+                {
+                    // Calculate target rotation based on movement direction
+                    float targetAngle = Mathf.Atan2(moveDir.x, moveDir.z) * Mathf.Rad2Deg;
+
+                    // Smoothly rotate player to face movement direction
+                    float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, turnSmoothTime);
+                    transform.rotation = Quaternion.Euler(0f, angle, 0f);
+
+                    float targetSpeed = moveSpeed * moveInput.magnitude;
+                    currentSpeed = Mathf.SmoothDamp(currentSpeed, targetSpeed, ref speedSmoothVelocity, speedSmoothTime);
+
+                    moveDirection = moveDir.normalized * currentSpeed;
+                    
+                    // When not locked on, always walk forward (player rotates to face direction)
+                    if (animator != null)
+                    {
+                        animator.SetBool("walkBack", false);
+                        animator.SetBool("walkLeft", false);
+                        animator.SetBool("walkRight", false);
+                    }
+                }
             }
         }
         else
         {
             currentSpeed = Mathf.SmoothDamp(currentSpeed, 0f, ref speedSmoothVelocity, speedSmoothTime);
+            
+            // Reset animator when not moving
+            if (animator != null)
+            {
+                animator.SetBool("walkBack", false);
+                animator.SetBool("walkLeft", false);
+                animator.SetBool("walkRight", false);
+            }
         }
 
         moveDirection.y = velocity.y;
         controller.Move(moveDirection * Time.deltaTime);
+    }
+    private void FaceLockedTargetIfAvailable()
+    {
+        if (lockOnScript != null && lockOnScript.IsLockedOn())
+        {
+            Transform target = lockOnScript.GetCurrentTarget();
+            if (target != null)
+            {
+                // Calculate direction to target
+                Vector3 direction = target.position - transform.position;
+                direction.y = 0; // Keep rotation on horizontal plane
+
+                if (direction.magnitude > 0.1f)
+                {
+                    // Smoothly rotate to face target
+                    Quaternion targetRotation = Quaternion.LookRotation(direction);
+                    transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, 10f * Time.deltaTime);
+                }
+            }
+        }
     }
 
     // ---------------- INPUT EVENTS ---------------- //
@@ -248,6 +340,7 @@ public class PlayerMovement3D : MonoBehaviour
         
         isDashing = false;
     }
+
     
     public void OnAttack(InputAction.CallbackContext context)
     {
@@ -259,12 +352,28 @@ public class PlayerMovement3D : MonoBehaviour
 
     void Attack()
     {
+        if (isAttacking) return;
         isAttacking = true;
         
+        // Face locked target if available
+        if(lockOnScript != null && lockOnScript.IsLockedOn())
+        {
+            Transform target = lockOnScript.GetCurrentTarget();
+            if (target != null)
+            {
+                Vector3 direction = target.position - transform.position;
+                direction.y = 0;
+                if(direction.magnitude > 0.1f){
+                    transform.rotation = Quaternion.LookRotation(direction);
+                }
+            }
+        }
+
+        // Trigger attack animation
         if (animator != null)
         {
             animator.SetTrigger("attack");
-            animator.SetBool("isMoving", false); // Stop movement animation
+            animator.SetBool("isMoving", false);
         }
 
         // Wait for attack animation to finish
@@ -273,29 +382,50 @@ public class PlayerMovement3D : MonoBehaviour
 
     IEnumerator AttackCoroutine()
     {
-        // Wait a bit for the attack animation to reach the hit point
-        yield return new WaitForSeconds(0.3f);
-        
-        // Detect and damage enemies in range
-        DealDamageToEnemies();
-        
-        // Wait for rest of attack animation to finish
-        yield return new WaitForSeconds(attackCooldown - 0.3f);
-
+        // Wait for attack animation to finish based on cooldown
+        yield return new WaitForSeconds(attackCooldown);
         isAttacking = false;
     }
 
-    void DealDamageToEnemies()
+    
+    public void ApplyAttackDamage()
     {
-        // Find all colliders in attack range on enemy layer
-        Collider[] hitEnemies = Physics.OverlapSphere(transform.position, attackRange, enemyLayer);
+        PerformAttackHit();
+    }
 
+
+    // Actual damage logic
+    private void PerformAttackHit()
+    {
+        Vector3 hitboxPos = transform.position + transform.forward * hitboxForwardOffset;
+        
+        // Detect enemies in attack hitbox
+        Collider[] hitEnemies = Physics.OverlapBox(
+            hitboxPos,
+            hitboxSize / 2f,
+            transform.rotation,
+            enemyLayer
+        );
+
+        // Apply damage to all hit enemies
         foreach (Collider enemy in hitEnemies)
         {
+            // Try regular enemy AI first
             EnemyAI enemyAi = enemy.GetComponent<EnemyAI>();
             if (enemyAi != null)
             {
                 enemyAi.TakeDamage(attackDamage);
+                Debug.Log($"Hit {enemy.name} for {attackDamage} damage!");
+                continue;
+            }
+            
+            // Try lumberjack AI
+            LumberjackAI lumberjackAi = enemy.GetComponent<LumberjackAI>();
+            if (lumberjackAi != null)
+            {
+                lumberjackAi.TakeDamage(attackDamage);
+                Debug.Log($"Hit lumberjack {enemy.name} for {attackDamage} damage!");
+                continue;
             }
         }
     }
@@ -309,8 +439,19 @@ public class PlayerMovement3D : MonoBehaviour
             Gizmos.DrawWireSphere(groundCheck.position, groundDistance);
         }
 
-        // Visualize attack range
+        // Visualize attack hitbox (the actual attack box)
+        Gizmos.color = Color.red;
+        Vector3 hitboxPos = transform.position + transform.forward * hitboxForwardOffset;
+        Gizmos.matrix = Matrix4x4.TRS(hitboxPos, transform.rotation, Vector3.one);
+        Gizmos.DrawWireCube(Vector3.zero, hitboxSize);
+        Gizmos.matrix = Matrix4x4.identity;
+        
+        // Draw line showing forward direction
         Gizmos.color = Color.blue;
+        Gizmos.DrawLine(transform.position, transform.position + transform.forward * hitboxForwardOffset);
+        
+        // Draw sphere showing attack range (legacy, for reference)
+        Gizmos.color = new Color(0, 1, 0, 0.2f);
         Gizmos.DrawWireSphere(transform.position, attackRange);
     }
 }

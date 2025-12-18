@@ -34391,6 +34391,7 @@ GameObject:
   - component: {fileID: 8636462576248347671}
   - component: {fileID: 653593502496603599}
   - component: {fileID: 7095565760034471592}
+  - component: {fileID: 3888375509504210485}
   m_Layer: 0
   m_Name: Meteors AOE
   m_TagString: Untagged
@@ -35257,7 +35258,7 @@ ParticleSystem:
     rateOverTime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 0
+      scalar: 50
       minScalar: 10
       maxCurve:
         serializedVersion: 2
@@ -39329,6 +39330,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bec344351e44b364e8e795dd2401a429, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  useParticleDamage: 1
+  useLegacyRadiusDamage: 0
   damage: 50
   radius: 3
   targetLayers:
@@ -39339,3 +39342,21 @@ MonoBehaviour:
   damageInterval: 0.5
   rotateOverTime: 0
   rotationSpeed: {x: 0, y: 100, z: 0}
+--- !u!114 &3888375509504210485
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7957833072274404953}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d189448849abce64b9bc2ef6bddc1a52, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  damagePerHit: 20
+  damageableLayers:
+    serializedVersion: 2
+    m_Bits: 8
+  preventMultipleHits: 1
+  hitCooldown: 0.1

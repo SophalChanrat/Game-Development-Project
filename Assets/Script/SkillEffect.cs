@@ -1,8 +1,15 @@
 using UnityEngine;
 public class SkillEffect : MonoBehaviour
 {
-    [Header("Damage Settings")]
-    [Tooltip("How much damage this skill deals")]
+    [Header("Damage Mode")]
+    [Tooltip("Use particle collision for damage (recommended for falling particles)")]
+    public bool useParticleDamage = true;
+    
+    [Header("Legacy Radius Damage (Optional)")]
+    [Tooltip("Enable radius-based damage (old method)")]
+    public bool useLegacyRadiusDamage = false;
+    
+    [Tooltip("How much damage this skill deals (legacy mode)")]
     public float damage = 50f;
     
     [Tooltip("Radius to detect enemies (red sphere in Scene view)")]
@@ -12,10 +19,10 @@ public class SkillEffect : MonoBehaviour
     public LayerMask targetLayers;
     
     [Header("Timing")]
-    [Tooltip("Deal damage immediately when skill spawns")]
-    public bool dealDamageOnSpawn = true;
+    [Tooltip("Deal damage immediately when skill spawns (legacy mode)")]
+    public bool dealDamageOnSpawn = false;
     
-    [Tooltip("Deal damage continuously over time")]
+    [Tooltip("Deal damage continuously over time (legacy mode)")]
     public bool dealDamageContinuously = false;
     
     [Tooltip("How often to deal damage if continuous (seconds)")]
@@ -32,9 +39,24 @@ public class SkillEffect : MonoBehaviour
 
     void Start()
     {
-        if (dealDamageOnSpawn)
+        // Only use legacy damage if explicitly enabled
+        if (useLegacyRadiusDamage && dealDamageOnSpawn)
         {
             DealDamage();
+        }
+        
+        // If using particle damage, ensure ParticleDamage component exists
+        if (useParticleDamage)
+        {
+            ParticleSystem ps = GetComponentInChildren<ParticleSystem>();
+            if (ps != null)
+            {
+                ParticleDamage particleDamage = ps.GetComponent<ParticleDamage>();
+                if (particleDamage == null)
+                {
+                    Debug.LogWarning($"[SKILL EFFECT] {gameObject.name} is set to use particle damage but has no ParticleDamage component!");
+                }
+            }
         }
     }
 
@@ -46,8 +68,8 @@ public class SkillEffect : MonoBehaviour
             transform.Rotate(rotationSpeed * Time.deltaTime);
         }
 
-        // Continuous damage
-        if (dealDamageContinuously)
+        // Continuous damage (legacy mode only)
+        if (useLegacyRadiusDamage && dealDamageContinuously)
         {
             damageTimer += Time.deltaTime;
             if (damageTimer >= damageInterval)
@@ -57,24 +79,46 @@ public class SkillEffect : MonoBehaviour
             }
         }
     }
+
+    /// <summary>
+    /// Legacy: Finds and damages all enemies in radius
+    /// </summary>
     public void DealDamage()
     {
+        if (!useLegacyRadiusDamage)
+            return;
+            
         // Find all colliders in radius on target layers
         Collider[] hits = Physics.OverlapSphere(transform.position, radius, targetLayers);
 
         foreach (Collider hit in hits)
         {
-            // Try to damage enemy
+            // Try to damage regular enemy
             EnemyAI enemy = hit.GetComponent<EnemyAI>();
             if (enemy != null)
             {
                 enemy.TakeDamage((int)damage);
+                continue;
+            }
+            
+            // Try to damage lumberjack
+            LumberjackAI lumberjack = hit.GetComponent<LumberjackAI>();
+            if (lumberjack != null)
+            {
+                lumberjack.TakeDamage((int)damage);
+                continue;
             }
         }
     }
 
+    /// <summary>
+    /// Visualize damage radius in Scene view (red sphere) - Legacy mode only
+    /// </summary>
     void OnDrawGizmosSelected()
     {
+        if (!useLegacyRadiusDamage)
+            return;
+            
         // Draw semi-transparent sphere
         Gizmos.color = new Color(1, 0, 0, 0.3f);
         Gizmos.DrawSphere(transform.position, radius);
