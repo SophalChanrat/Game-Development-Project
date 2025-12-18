@@ -24,6 +24,7 @@ public class EnemyAI : MonoBehaviour
     private float nextAttackTime = 0f;
     private bool isAttacking = false;
     private bool isDead = false;
+    private bool hasNotifiedMusicManager = false; // Track if we've notified music manager
 
     [Header("Movement")]
     public float chaseSpeed = 3.5f;
@@ -112,6 +113,13 @@ public class EnemyAI : MonoBehaviour
         if (distance <= detectionRange)
         {
             currentState = State.Chasing;
+
+            // Notify music manager that combat started
+            if (!hasNotifiedMusicManager && MusicManager.Instance != null)
+            {
+                MusicManager.Instance.OnEnemyEnterCombat();
+                hasNotifiedMusicManager = true;
+            }
         }
     }
 
@@ -122,6 +130,13 @@ public class EnemyAI : MonoBehaviour
             currentState = State.Idle;
             if (agent != null && agent.enabled)
                 agent.SetDestination(transform.position);
+
+            // Notify music manager that combat ended
+            if (hasNotifiedMusicManager && MusicManager.Instance != null)
+            {
+                MusicManager.Instance.OnEnemyExitCombat();
+                hasNotifiedMusicManager = false;
+            }
             return;
         }
 
@@ -261,9 +276,16 @@ public class EnemyAI : MonoBehaviour
     void Die()
     {
         if (isDead) return;
-        
+
         isDead = true;
         currentState = State.Dead;
+
+        // Notify music manager that combat ended (enemy died)
+        if (hasNotifiedMusicManager && MusicManager.Instance != null)
+        {
+            MusicManager.Instance.OnEnemyExitCombat();
+            hasNotifiedMusicManager = false;
+        }
 
         if (agent != null)
         {
