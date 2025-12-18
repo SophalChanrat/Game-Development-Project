@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -43,6 +44,14 @@ public class PlayerMovement3D : MonoBehaviour
     public LayerMask enemyLayer;
     private bool isAttacking = false;
 
+    [Header("Interaction")]
+    public float interactRange = 2f;
+    public LayerMask interactLayer;
+    //private RescueInteractable currentRescueTarget;
+    private bool isInteracting;
+
+    public RescueInteractable currentRescueTarget;
+
     void Awake()
     {
         controller = GetComponent<CharacterController>();
@@ -69,7 +78,7 @@ public class PlayerMovement3D : MonoBehaviour
         ApplyGravity();
         
         // Only allow movement if not attacking
-        if (!isAttacking)
+        if (!isAttacking && !isInteracting)
         {
             MovePlayer();
         }
@@ -146,6 +155,35 @@ public class PlayerMovement3D : MonoBehaviour
     }
 
     // ---------------- INPUT EVENTS ---------------- //
+   
+    public void OnInteract(InputAction.CallbackContext context)
+    {
+        if (context.started)
+        {
+            if (currentRescueTarget != null)
+                currentRescueTarget.TryRescue();
+        }
+
+        if (context.canceled)
+        {
+            if (currentRescueTarget != null)
+                currentRescueTarget.CancelRescue();
+        }
+    }
+   
+
+    void StopInteract()
+    {
+        isInteracting = false;
+
+        if (currentRescueTarget != null)
+        {
+            currentRescueTarget.CancelRescue();
+            currentRescueTarget = null;
+        }
+    }
+
+
 
     public void OnMove(InputAction.CallbackContext context)
     {
