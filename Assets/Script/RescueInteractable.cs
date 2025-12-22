@@ -9,18 +9,33 @@ public class RescueInteractable : MonoBehaviour
     [Header("References")]
     public AnimalMovement trappedAnimal;
     public ParticleSystem cageParticles;
-    public Slider worldSlider;   // Slider above the animal
+    public Slider worldSlider;
+
+    [Header("Interaction Prompt")]
+    [Tooltip("Show prompt above animal")]
+    public bool showInteractionPrompt = true;
+    
+    [Tooltip("Animal name to display")]
+    public string animalName = "Trapped Animal";
 
     [HideInInspector] public bool playerInRange = false;
 
     private float progress;
     private bool isRescuing;
     private bool rescued;
+    private Transform player;
 
     private void Start()
     {
         if (worldSlider != null)
             worldSlider.gameObject.SetActive(false);
+            
+        // Find player for prompt
+        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+        if (playerObj != null)
+        {
+            player = playerObj.transform;
+        }
     }
 
     private void Update()
@@ -111,6 +126,55 @@ public class RescueInteractable : MonoBehaviour
             other.GetComponent<PlayerMovement3D>().currentRescueTarget = null;
             CancelRescue();
             Debug.Log("Player left rescue zone.");
+        }
+    }
+    
+    // GUI for interaction prompt (like MissionSystem and DialogueManager)
+    void OnGUI()
+    {
+        if (!showInteractionPrompt || rescued) return;
+        if (!playerInRange || player == null) return;
+        
+        // Draw interaction prompt
+        Vector3 screenPos = Camera.main.WorldToScreenPoint(transform.position + Vector3.up * 2f);
+        
+        if (screenPos.z > 0)
+        {
+            GUIStyle style = new GUIStyle();
+            style.fontSize = 20;
+            style.normal.textColor = Color.yellow;
+            style.alignment = TextAnchor.MiddleCenter;
+            
+            if (isRescuing)
+            {
+                // Show progress while rescuing
+                int percentage = Mathf.RoundToInt((progress / rescueDuration) * 100f);
+                GUI.Label(new Rect(screenPos.x - 100, Screen.height - screenPos.y - 50, 200, 30), 
+                          "Rescuing... " + percentage + "%", style);
+            }
+            else
+            {
+                // Show hold prompt
+                GUI.Label(new Rect(screenPos.x - 100, Screen.height - screenPos.y - 50, 200, 30), 
+                          "Hold [F] to rescue", style);
+            }
+            
+            style.fontSize = 16;
+            style.normal.textColor = Color.white;
+            GUI.Label(new Rect(screenPos.x - 150, Screen.height - screenPos.y - 20, 300, 30), 
+                      animalName, style);
+        }
+    }
+    
+    // Gizmos for debugging
+    void OnDrawGizmosSelected()
+    {
+        // Draw interaction range (from trigger collider)
+        Collider col = GetComponent<Collider>();
+        if (col != null)
+        {
+            Gizmos.color = Color.green;
+            Gizmos.DrawWireSphere(transform.position, 2f);
         }
     }
 }

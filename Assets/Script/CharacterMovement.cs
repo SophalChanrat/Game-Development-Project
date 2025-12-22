@@ -290,6 +290,13 @@ public class PlayerMovement3D : MonoBehaviour
 
     public void OnJump(InputAction.CallbackContext context)
     {
+        // Check if dialogue is active
+        DialogueManager dialogueManager = FindObjectOfType<DialogueManager>();
+        if (dialogueManager != null && dialogueManager.IsDialogueActive())
+        {
+            return; // Don't jump during dialogue
+        }
+        
         if (context.started && isGrounded && !isAttacking)
         {
             velocity.y = Mathf.Sqrt(jumpHeight * 2f * -gravity);
