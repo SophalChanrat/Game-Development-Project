@@ -18,6 +18,8 @@ public class MissionUI : MonoBehaviour
     public GameObject completedPanel;
     public GameObject failedPanel;
     public GameObject missionProgressPanel;
+    public GameObject bgprotect;
+    public GameObject bganimal;
     
     [Header("Mission Reference")]
     public MissionSystem mission;
@@ -96,6 +98,8 @@ public class MissionUI : MonoBehaviour
     
     void UpdateTreeMissionInfo()
     {
+        bganimal?.SetActive(false);
+        bgprotect?.SetActive(true);
         // Update mission name
         if (missionNameText != null)
         {
@@ -139,6 +143,8 @@ public class MissionUI : MonoBehaviour
     
     void UpdateRescueMissionInfo()
     {
+        bganimal?.SetActive(true);
+        bgprotect?.SetActive(false);
         // Update mission name
         if (missionNameText != null)
         {
