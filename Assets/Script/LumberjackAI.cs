@@ -110,7 +110,6 @@ public class LumberjackAI : MonoBehaviour
         // Validate NavMeshAgent
         if (agent == null)
         {
-            Debug.LogError($"[LUMBERJACK] {gameObject.name} is missing NavMeshAgent component!");
             enabled = false;
             return;
         }
@@ -123,10 +122,6 @@ public class LumberjackAI : MonoBehaviour
         agent.autoRepath = true;
         agent.angularSpeed = 120f; // Smooth rotation speed
 
-        if (showDebugLogs)
-        {
-            Debug.Log($"[LUMBERJACK] {gameObject.name} initialized. Agent enabled: {agent.enabled}, On NavMesh: {agent.isOnNavMesh}");
-        }
 
         // Disable root motion on animator
         if (animator != null)
@@ -139,16 +134,6 @@ public class LumberjackAI : MonoBehaviour
     {
         currentState = State.Idle;
 
-        // Check if on NavMesh
-        if (agent != null && !agent.isOnNavMesh)
-        {
-            Debug.LogError($"[LUMBERJACK] {gameObject.name} is NOT on NavMesh! Place it on a NavMesh surface.");
-        }
-
-        if (showDebugLogs)
-        {
-            Debug.Log($"[LUMBERJACK] {gameObject.name} started. Tree Layer: {treeLayer.value}, Detection Range: {treeDetectionRange}, Attack Range: {treeAttackRange}");
-        }
     }
 
     void Update()
@@ -161,7 +146,6 @@ public class LumberjackAI : MonoBehaviour
             debugTimer += Time.deltaTime;
             if (debugTimer >= 2f)
             {
-                DebugCurrentState();
                 debugTimer = 0f;
             }
         }
@@ -539,11 +523,6 @@ public class LumberjackAI : MonoBehaviour
     {
         Collider[] colliders = Physics.OverlapSphere(transform.position, treeDetectionRange, treeLayer);
 
-        if (showDebugLogs && colliders.Length > 0)
-        {
-            Debug.Log($"[LUMBERJACK] {gameObject.name} detected {colliders.Length} objects in tree layer");
-        }
-
         TreeHealth nearest = null;
         float nearestDistance = float.MaxValue;
 
@@ -561,11 +540,6 @@ public class LumberjackAI : MonoBehaviour
                     nearestDistance = distance;
                 }
             }
-        }
-
-        if (nearest == null && showDebugLogs && colliders.Length > 0)
-        {
-            Debug.LogWarning($"[LUMBERJACK] {gameObject.name} found {colliders.Length} colliders but no valid TreeHealth components!");
         }
 
         return nearest;
@@ -586,11 +560,6 @@ public class LumberjackAI : MonoBehaviour
         {
             agent.SetDestination(hit.position);
             isWandering = true;
-
-            if (showDebugLogs)
-            {
-                Debug.Log($"[LUMBERJACK] {gameObject.name} wandering to {hit.position}");
-            }
         }
     }
 
@@ -627,16 +596,6 @@ public class LumberjackAI : MonoBehaviour
         }
 
         animator.SetFloat(ANIM_SPEED, speed);
-    }
-
-    void DebugCurrentState()
-    {
-        string agentInfo = agent != null ? $"Enabled: {agent.enabled}, OnNavMesh: {agent.isOnNavMesh}, HasPath: {agent.hasPath}, PathStatus: {agent.pathStatus}" : "NULL";
-        string targetInfo = currentTargetTree != null ? $"Tree: {currentTargetTree.gameObject.name}, Distance: {Vector3.Distance(transform.position, currentTargetTree.transform.position):F2}m, Chops: {currentTargetTree.GetCurrentChops()}/{currentTargetTree.GetChopsRequired()}" : "None";
-
-        string playerInfo = player != null ? $"Player Distance: {Vector3.Distance(transform.position, player.position):F2}m" : "No Player";
-
-        Debug.Log($"[LUMBERJACK] {gameObject.name} | State: {currentState} | Agent: {agentInfo} | Target: {targetInfo} | {playerInfo}");
     }
 
     #endregion

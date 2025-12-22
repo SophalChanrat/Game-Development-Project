@@ -92,7 +92,10 @@ public class RescueInteractable : MonoBehaviour
 
     private void CompleteRescue()
     {
-        Debug.Log("Rescue completed!");
+        Debug.Log("[RESCUE] *** Rescue completed! ***");
+        Debug.Log("[RESCUE] GameObject: " + gameObject.name);
+        Debug.Log("[RESCUE] Active before SetActive(false): " + gameObject.activeSelf);
+        
         rescued = true;
         isRescuing = false;
 
@@ -105,7 +108,12 @@ public class RescueInteractable : MonoBehaviour
         if (cageParticles != null)
             cageParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
 
+        // Disable the gameObject - this should trigger OnDisable in RescueDetector
         gameObject.SetActive(false);
+        
+        // This line should NOT execute because object is disabled
+        // If you see this in console, something is wrong!
+        Debug.Log("[RESCUE] Active after SetActive(false): " + gameObject.activeSelf);
     }
 
     private void OnTriggerEnter(Collider other)

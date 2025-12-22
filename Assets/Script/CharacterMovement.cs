@@ -252,14 +252,46 @@ public class PlayerMovement3D : MonoBehaviour
     {
         if (context.started)
         {
+            // Check for tree protection mission first
+            MissionSystem mission = FindObjectOfType<MissionSystem>();
+            if (mission != null && mission.IsPlayerInRange())
+            {
+                mission.OnInteract(context);
+                return; // Don't process other interactions
+            }
+            
+            // Check for animal rescue mission
+            AnimalRescueMission rescueMission = FindObjectOfType<AnimalRescueMission>();
+            if (rescueMission != null && rescueMission.IsPlayerInRange())
+            {
+                rescueMission.OnInteract(context);
+                return; // Don't process other interactions
+            }
+            
+            // Check for dialogue
+            DialogueManager dialogue = FindObjectOfType<DialogueManager>();
+            if (dialogue != null && dialogue.IsPlayerInRange())
+            {
+                dialogue.OnInteract(context);
+                return;
+            }
+            
+            // Start rescuing animals (hold F to rescue)
             if (currentRescueTarget != null)
-                currentRescueTarget.TryRescue();
+            {
+                Debug.Log("[PLAYER] Starting rescue on: " + currentRescueTarget.gameObject.name);
+                currentRescueTarget.StartRescue();
+            }
         }
 
         if (context.canceled)
         {
+            // Cancel rescue when F is released
             if (currentRescueTarget != null)
+            {
+                Debug.Log("[PLAYER] Cancelled rescue on: " + currentRescueTarget.gameObject.name);
                 currentRescueTarget.CancelRescue();
+            }
         }
     }
    

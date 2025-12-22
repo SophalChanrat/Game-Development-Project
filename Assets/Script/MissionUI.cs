@@ -13,6 +13,7 @@ public class MissionUI : MonoBehaviour
     public TextMeshProUGUI timerText;
     public TextMeshProUGUI waveText;
     public TextMeshProUGUI treeStatusText;
+    public TextMeshProUGUI rescueStatusText;
     public Image progressBar;
     public GameObject completedPanel;
     public GameObject failedPanel;
@@ -20,7 +21,8 @@ public class MissionUI : MonoBehaviour
     
     [Header("Mission Reference")]
     public MissionSystem mission;
-    
+    public AnimalRescueMission rescueMission;
+
     [Header("Settings")]
     public float completePanelDisplayTime = 3f;
     public float failedPanelDisplayTime = 3f;
@@ -33,6 +35,7 @@ public class MissionUI : MonoBehaviour
         if (mission == null)
         {
             mission = FindObjectOfType<MissionSystem>();
+            rescueMission = FindObjectOfType<AnimalRescueMission>();
         }
         
         // Hide all panels initially
@@ -57,17 +60,18 @@ public class MissionUI : MonoBehaviour
         if (timerText != null) timerText.text = "";
         if (waveText != null) waveText.text = "";
         if (treeStatusText != null) treeStatusText.text = "";
+        if (rescueStatusText != null) rescueStatusText.text = "";
         if (progressBar != null) progressBar.fillAmount = 0f;
     }
     
     void Update()
     {
-        if (mission == null) return;
-        
         // Show/hide progress panel based on mission state
         if (missionProgressPanel != null)
-        {
-            bool shouldShow = mission.IsMissionActive();
+        {   
+            bool shouldShow =
+                (mission != null && mission.IsMissionActive()) ||
+                (rescueMission != null && rescueMission.IsMissionActive());
             if (missionProgressPanel.activeSelf != shouldShow)
             {
                 missionProgressPanel.SetActive(shouldShow);
@@ -80,27 +84,22 @@ public class MissionUI : MonoBehaviour
         }
         
         // Update mission info if active
-        if (mission.IsMissionActive())
+        if (mission != null && mission.IsMissionActive())
         {
-            UpdateMissionInfo();
+            UpdateTreeMissionInfo();
+        }
+        else if (rescueMission != null && rescueMission.IsMissionActive())
+        {
+            UpdateRescueMissionInfo();
         }
     }
     
-    void UpdateMissionInfo()
+    void UpdateTreeMissionInfo()
     {
         // Update mission name
         if (missionNameText != null)
         {
-            string newName = mission.missionName;
-            if (missionNameText.text != newName)
-            {
-                missionNameText.text = newName;
-                
-                if (showDebugLogs)
-                {
-                    Debug.Log("[MISSION UI] Updated mission name: " + newName);
-                }
-            }
+            missionNameText.text = mission.missionName;
         }
         
         // Update objective
@@ -108,98 +107,114 @@ public class MissionUI : MonoBehaviour
         {
             int kills = mission.GetKillCount();
             int total = mission.enemiesToKill;
-            string newObjective = "Enemies: " + kills + " / " + total;
-            
-            if (objectiveText.text != newObjective)
-            {
-                objectiveText.text = newObjective;
-                
-                if (showDebugLogs)
-                {
-                    Debug.Log("[MISSION UI] Updated objective: " + newObjective);
-                }
-            }
+            objectiveText.text = "Enemies: " + kills + " / " + total;
         }
         
-        // Update tree status for Protect Trees mission
+        // Update tree status
         if (treeStatusText != null)
         {
             int treesLost = mission.GetTreesDestroyed();
-            string treeStatus = "Trees Lost: " + treesLost + " / " + mission.allowedTreeLosses;
-            
-            if (treeStatusText.text != treeStatus)
-            {
-                treeStatusText.text = treeStatus;
-            }
-            
-            // Show tree status only active mission is active
-            treeStatusText.gameObject.SetActive(mission.IsMissionActive());
+            treeStatusText.text = "Trees Lost: " + treesLost + " / " + mission.allowedTreeLosses;
+            treeStatusText.gameObject.SetActive(true);
+        }
+        
+        // Hide rescue status
+        if (rescueStatusText != null)
+        {
+            rescueStatusText.gameObject.SetActive(false);
         }
         
         // Update timer
-        if (timerText != null)
-        {
-            if (mission.timeLimit > 0)
-            {
-                float timeRemaining = mission.GetTimeRemaining();
-                int minutes = Mathf.FloorToInt(timeRemaining / 60f);
-                int seconds = Mathf.FloorToInt(timeRemaining % 60f);
-                string newTimer = string.Format("Time: {0:00}:{1:00}", minutes, seconds);
-                
-                if (timerText.text != newTimer)
-                {
-                    timerText.text = newTimer;
-                }
-                
-                // Make sure timer is visible
-                if (!timerText.gameObject.activeSelf)
-                {
-                    timerText.gameObject.SetActive(true);
-                }
-            }
-            else
-            {
-                // Hide timer if not used
-                if (timerText.gameObject.activeSelf)
-                {
-                    timerText.gameObject.SetActive(false);
-                }
-            }
-        }
+        UpdateTimer(mission.timeLimit, mission.GetTimeRemaining());
         
         // Update wave
-        if (waveText != null)
-        {
-            if (mission.totalWaves > 0)
-            {
-                string newWave = "Wave: " + mission.GetCurrentWave() + " / " + mission.totalWaves;
-                
-                if (waveText.text != newWave)
-                {
-                    waveText.text = newWave;
-                }
-                
-                // Make sure wave is visible
-                if (!waveText.gameObject.activeSelf)
-                {
-                    waveText.gameObject.SetActive(true);
-                }
-            }
-            else
-            {
-                // Hide wave if not used
-                if (waveText.gameObject.activeSelf)
-                {
-                    waveText.gameObject.SetActive(false);
-                }
-            }
-        }
+        UpdateWave(mission.totalWaves, mission.GetCurrentWave());
         
         // Update progress bar
         if (progressBar != null && mission.enemiesToKill > 0)
         {
-            float progress = (float)mission.GetKillCount() / mission.enemiesToKill;
-            progressBar.fillAmount = progress;
+            progressBar.fillAmount = (float)mission.GetKillCount() / mission.enemiesToKill;
+        }
+    }
+    
+    void UpdateRescueMissionInfo()
+    {
+        // Update mission name
+        if (missionNameText != null)
+        {
+            missionNameText.text = rescueMission.missionName;
+        }
+        
+        // Update objective - show animals rescued
+        if (objectiveText != null)
+        {
+            int rescued = rescueMission.GetAnimalsRescued();
+            int total = rescueMission.GetAnimalsToRescue();
+            objectiveText.text = "Animals Rescued: " + rescued + " / " + total;
+        }
+        
+        // Show rescue status
+        if (rescueStatusText != null)
+        {
+            int rescued = rescueMission.GetAnimalsRescued();
+            int total = rescueMission.GetAnimalsToRescue();
+            rescueStatusText.text = "Progress: " + rescued + " / " + total;
+            rescueStatusText.gameObject.SetActive(true);
+        }
+        
+        // Hide tree status
+        if (treeStatusText != null)
+        {
+            treeStatusText.gameObject.SetActive(false);
+        }
+        
+        // Update timer
+        UpdateTimer(rescueMission.timeLimit, rescueMission.GetTimeRemaining());
+        
+        // Hide wave text (rescue mission doesn't show waves)
+        if (waveText != null)
+        {
+            waveText.gameObject.SetActive(false);
+        }
+        
+        // Update progress bar
+        if (progressBar != null && rescueMission.GetAnimalsToRescue() > 0)
+        {
+            progressBar.fillAmount = (float)rescueMission.GetAnimalsRescued() / rescueMission.GetAnimalsToRescue();
+        }
+    }
+    
+    void UpdateTimer(float timeLimit, float timeRemaining)
+    {
+        if (timerText != null)
+        {
+            if (timeLimit > 0)
+            {
+                int minutes = Mathf.FloorToInt(timeRemaining / 60f);
+                int seconds = Mathf.FloorToInt(timeRemaining % 60f);
+                timerText.text = string.Format("Time: {0:00}:{1:00}", minutes, seconds);
+                timerText.gameObject.SetActive(true);
+            }
+            else
+            {
+                timerText.gameObject.SetActive(false);
+            }
+        }
+    }
+    
+    void UpdateWave(int totalWaves, int currentWave)
+    {
+        if (waveText != null)
+        {
+            if (totalWaves > 0)
+            {
+                waveText.text = "Wave: " + currentWave + " / " + totalWaves;
+                waveText.gameObject.SetActive(true);
+            }
+            else
+            {
+                waveText.gameObject.SetActive(false);
+            }
         }
     }
     

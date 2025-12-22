@@ -43,6 +43,13 @@ public class DialogueManager : MonoBehaviour
     
     [Tooltip("Characters per second")]
     public float typingSpeed = 50f;
+    
+    [Header("Mission Unlock")]
+    [Tooltip("Has the player talked to the Tree Spirit?")]
+    public static bool hasTalkedToTreeSpirit = false;
+    
+    [Tooltip("Event when dialogue completes and missions unlock")]
+    public UnityEngine.Events.UnityEvent OnMissionsUnlocked;
 
     private int currentDialogueIndex = 0;
     private bool isDialogueActive = false;
@@ -74,6 +81,8 @@ public class DialogueManager : MonoBehaviour
         {
             skipButton.onClick.AddListener(SkipDialogue);
         }
+        
+        Debug.Log("[DIALOGUE] DialogueManager initialized. Missions unlocked: " + hasTalkedToTreeSpirit);
     }
 
     private void Update()
@@ -228,7 +237,39 @@ public class DialogueManager : MonoBehaviour
         
         StopAllCoroutines();
         
+        // Unlock missions after first dialogue completion
+        if (!hasTalkedToTreeSpirit)
+        {
+            hasTalkedToTreeSpirit = true;
+            Debug.Log("[DIALOGUE] ========================================");
+            Debug.Log("[DIALOGUE] MISSIONS UNLOCKED! Player has talked to Tree Spirit!");
+            Debug.Log("[DIALOGUE] ========================================");
+            
+            // Invoke event to notify missions
+            OnMissionsUnlocked?.Invoke();
+            
+            // Notify all missions that they are now available
+            NotifyMissionsUnlocked();
+        }
+        
         Debug.Log("[DIALOGUE] Ended dialogue");
+    }
+    
+    private void NotifyMissionsUnlocked()
+    {
+        // Notify tree protection mission
+        MissionSystem treeMission = FindObjectOfType<MissionSystem>();
+        if (treeMission != null)
+        {
+            treeMission.OnMissionsUnlockedByDialogue();
+        }
+        
+        // Notify animal rescue mission
+        AnimalRescueMission rescueMission = FindObjectOfType<AnimalRescueMission>();
+        if (rescueMission != null)
+        {
+            rescueMission.OnMissionsUnlockedByDialogue();
+        }
     }
 
     public void ShowPressEPrompt()
@@ -262,6 +303,7 @@ public class DialogueManager : MonoBehaviour
     // Public getters
     public bool IsDialogueActive() => isDialogueActive;
     public bool IsPlayerInRange() => playerInRange;
+    public static bool AreMissionsUnlocked() => hasTalkedToTreeSpirit;
     
     // GUI for interaction prompt (similar to MissionSystem)
     void OnGUI()

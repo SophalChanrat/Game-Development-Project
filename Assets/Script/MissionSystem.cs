@@ -2,10 +2,12 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.InputSystem;
 
 /// <summary>
 /// Mission System - Player can interact to start missions
 /// Missions have objectives, rewards, and custom enemy spawning
+/// Requires talking to Tree Spirit first!
 /// </summary>
 public class MissionSystem : MonoBehaviour
 {
@@ -21,14 +23,27 @@ public class MissionSystem : MonoBehaviour
     public MissionType missionType = MissionType.ProtectTrees;
     
     [Header("Interaction")]
-    [Tooltip("Key to press to start mission (default: E)")]
-    public KeyCode interactionKey = KeyCode.E;
-    
     [Tooltip("Distance player must be to interact")]
     public float interactionDistance = 3f;
     
     [Tooltip("Show prompt above mission giver")]
     public bool showInteractionPrompt = true;
+    
+    [Header("Mission Marker")]
+    [Tooltip("Show floating marker above mission location")]
+    public bool showMissionMarker = true;
+    
+    [Tooltip("Marker height above mission giver")]
+    public float markerHeight = 3f;
+    
+    [Tooltip("Marker bob speed")]
+    public float markerBobSpeed = 2f;
+    
+    [Tooltip("Marker bob amount")]
+    public float markerBobAmount = 0.3f;
+    
+    // Mission marker state
+    private bool missionUnlocked = false;
     
     [Header("Mission Objectives")]
     [Tooltip("Number of enemies to kill (all mission types)")]
@@ -52,13 +67,6 @@ public class MissionSystem : MonoBehaviour
     
     [Tooltip("Number of trees that can be destroyed before mission fails")]
     public int allowedTreeLosses = 2;
-    
-    [Header("Rescue Animals Mission (To Be Implemented)")]
-    [Tooltip("Animals to rescue")]
-    public GameObject[] animalsToRescue;
-    
-    [Tooltip("Number of animals that need to be rescued")]
-    public int animalsToRescueCount = 5;
     
     [Header("Enemy Spawning")]
     [Tooltip("Enemy prefabs to spawn for this mission")]
@@ -129,13 +137,9 @@ public class MissionSystem : MonoBehaviour
     private List<TreeHealth> trackedTrees = new List<TreeHealth>();
     private List<GameObject> spawnedTrees = new List<GameObject>();
     
-    // Animal rescue tracking (to be implemented)
-    private int animalsRescued = 0;
-    
     public enum MissionType
     {
-        ProtectTrees,       // Protect trees from lumberjacks (enemies spawn too)
-        RescueAnimals       // Rescue animals (to be implemented)
+        ProtectTrees       // Protect trees from lumberjacks
     }
     
     void Start()
@@ -168,12 +172,24 @@ public class MissionSystem : MonoBehaviour
             missionUICanvas.gameObject.SetActive(false);
         }
         
+        // Check if missions are already unlocked (e.g., from previous scene)
+        missionUnlocked = DialogueManager.hasTalkedToTreeSpirit;
+        
         // Validate spawn points
         if (spawnPoints == null || spawnPoints.Length == 0)
         {
             Debug.LogWarning("[MISSION] No spawn points assigned! Using mission position as spawn point.");
             spawnPoints = new Transform[] { transform };
         }
+        
+        Debug.Log("[MISSION] Tree Protection Mission initialized. Unlocked: " + missionUnlocked);
+    }
+    
+    // Called by DialogueManager when player finishes talking to Tree Spirit
+    public void OnMissionsUnlockedByDialogue()
+    {
+        missionUnlocked = true;
+        Debug.Log("[MISSION] Tree Protection Mission UNLOCKED by dialogue!");
     }
     
     void SetupTreeProtection()
@@ -266,19 +282,45 @@ public class MissionSystem : MonoBehaviour
         float distanceToPlayer = Vector3.Distance(transform.position, player.position);
         playerInRange = distanceToPlayer <= interactionDistance;
         
-        // Handle interaction
-        if (!missionActive && !missionCompleted && playerInRange)
-        {
-            if (Input.GetKeyDown(interactionKey))
-            {
-                StartMission();
-            }
-        }
-        
         // Update mission progress
         if (missionActive && !missionCompleted && !missionFailed)
         {
             UpdateMission();
+        }
+    }
+    
+    // Called from Input System via CharacterMovement or Player Input
+    public void OnInteract(InputAction.CallbackContext context)
+    {
+        if (!context.started)
+        {
+            Debug.Log("[MISSION] OnInteract called but context not started");
+            return;
+        }
+        
+        Debug.Log("[MISSION] OnInteract - playerInRange: " + playerInRange + ", missionActive: " + missionActive + ", missionCompleted: " + missionCompleted + ", unlocked: " + missionUnlocked);
+        
+        // Check if missions are unlocked
+        if (!missionUnlocked)
+        {
+            Debug.LogWarning("[MISSION] Cannot start - must talk to Tree Spirit first!");
+            return;
+        }
+        
+        // Start mission if in range and not active
+        if (!missionActive && !missionCompleted && playerInRange)
+        {
+            Debug.Log("[MISSION] Attempting to start mission...");
+            StartMission();
+        }
+        else
+        {
+            if (missionActive)
+                Debug.LogWarning("[MISSION] Cannot start - mission already active");
+            if (missionCompleted)
+                Debug.LogWarning("[MISSION] Cannot start - mission already completed (need to reset)");
+            if (!playerInRange)
+                Debug.LogWarning("[MISSION] Cannot start - player not in range");
         }
     }
     
@@ -298,17 +340,8 @@ public class MissionSystem : MonoBehaviour
         // Clean up dead enemies
         spawnedEnemies.RemoveAll(enemy => enemy == null);
         
-        // Check objectives based on mission type
-        switch (missionType)
-        {
-            case MissionType.ProtectTrees:
-                CheckTreeProtectionObjective();
-                break;
-                
-            case MissionType.RescueAnimals:
-                CheckAnimalRescueObjective();
-                break;
-        }
+        // Check tree protection objective
+        CheckTreeProtectionObjective();
     }
     
     void CheckTreeProtectionObjective()
@@ -338,21 +371,10 @@ public class MissionSystem : MonoBehaviour
         }
     }
     
-    void CheckAnimalRescueObjective()
-    {
-        // To be implemented
-        Debug.LogWarning("[MISSION] Rescue Animals mission not yet implemented!");
-        
-        // Placeholder: Complete when killed enough enemies
-        if (currentKillCount >= enemiesToKill)
-        {
-            CompleteMission();
-        }
-    }
-    
     public void StartMission()
     {
         if (missionActive) return;
+        if (!missionUnlocked) return;
         
         // Reset mission state (allow replay)
         missionActive = true;
@@ -363,15 +385,11 @@ public class MissionSystem : MonoBehaviour
         currentKillCount = 0;
         currentWave = 0;
         treesDestroyed = 0;
-        animalsRescued = 0;
         
         Debug.Log("[MISSION] Started: " + missionName + " (Type: " + missionType + ")");
         
-        // Setup tree protection if mission type is ProtectTrees
-        if (missionType == MissionType.ProtectTrees)
-        {
-            SetupTreeProtection();
-        }
+        // Setup tree protection
+        SetupTreeProtection();
         
         // Play sound
         if (audioSource != null && missionStartSound != null)
@@ -423,8 +441,7 @@ public class MissionSystem : MonoBehaviour
             GameObject prefabToSpawn = null;
             
             // For Protect Trees mission: 50% lumberjacks, 50% enemies
-            // For other missions: 70% enemies, 30% lumberjacks
-            float lumberjackChance = (missionType == MissionType.ProtectTrees) ? 0.5f : 0.3f;
+            float lumberjackChance = 0.5f;
             
             bool spawnLumberjack = Random.value < lumberjackChance && missionLumberjackPrefabs != null && missionLumberjackPrefabs.Length > 0;
             
@@ -621,35 +638,88 @@ public class MissionSystem : MonoBehaviour
     public void ForceFailMission(string reason) => FailMission(reason);
     public bool IsMissionActive() => missionActive;
     public bool IsMissionCompleted() => missionCompleted;
+    public bool IsPlayerInRange() => playerInRange;
+    public bool IsMissionUnlocked() => missionUnlocked;
     public int GetKillCount() => currentKillCount;
     public int GetCurrentWave() => currentWave;
     public float GetTimeRemaining() => timeLimit > 0 ? timeLimit - missionTimer : 0f;
     public int GetTreesDestroyed() => treesDestroyed;
-    public int GetAnimalsRescued() => animalsRescued;
     
-    // GUI for interaction prompt
+    // GUI for interaction prompt AND mission marker
     void OnGUI()
     {
+        if (player == null) return;
+        
+        // Show mission marker when unlocked but not started/completed
+        if (showMissionMarker && missionUnlocked && !missionActive && !missionCompleted)
+        {
+            DrawMissionMarker();
+        }
+        
+        // Show "Talk to Tree Spirit first" if not unlocked
+        if (!missionUnlocked && playerInRange && showInteractionPrompt)
+        {
+            Vector3 screenPos = Camera.main.WorldToScreenPoint(transform.position + Vector3.up * 2f);
+            
+            if (screenPos.z > 0)
+            {
+                GUIStyle style = new GUIStyle();
+                style.fontSize = 18;
+                style.normal.textColor = Color.gray;
+                style.alignment = TextAnchor.MiddleCenter;
+                
+                GUI.Label(new Rect(screenPos.x - 150, Screen.height - screenPos.y - 50, 300, 30), 
+                          "Talk to Tree Spirit first", style);
+            }
+            return;
+        }
+        
         if (!showInteractionPrompt || missionActive || missionCompleted) return;
-        if (!playerInRange || player == null) return;
+        if (!playerInRange) return;
         
         // Draw interaction prompt
-        Vector3 screenPos = Camera.main.WorldToScreenPoint(transform.position + Vector3.up * 2f);
+        Vector3 promptPos = Camera.main.WorldToScreenPoint(transform.position + Vector3.up * 2f);
         
-        if (screenPos.z > 0)
+        if (promptPos.z > 0)
         {
             GUIStyle style = new GUIStyle();
             style.fontSize = 20;
             style.normal.textColor = Color.yellow;
             style.alignment = TextAnchor.MiddleCenter;
             
-            GUI.Label(new Rect(screenPos.x - 100, Screen.height - screenPos.y - 50, 200, 30), 
-                      "Press [" + interactionKey + "] to start mission", style);
+            GUI.Label(new Rect(promptPos.x - 100, Screen.height - promptPos.y - 50, 200, 30), 
+                      "Press [F] to start mission", style);
             
             style.fontSize = 16;
             style.normal.textColor = Color.white;
-            GUI.Label(new Rect(screenPos.x - 150, Screen.height - screenPos.y - 20, 300, 30), 
+            GUI.Label(new Rect(promptPos.x - 150, Screen.height - promptPos.y - 20, 300, 30), 
                       missionName, style);
+        }
+    }
+    
+    void DrawMissionMarker()
+    {
+        // Calculate bobbing position
+        float bob = Mathf.Sin(Time.time * markerBobSpeed) * markerBobAmount;
+        Vector3 markerWorldPos = transform.position + Vector3.up * (markerHeight + bob);
+        
+        Vector3 screenPos = Camera.main.WorldToScreenPoint(markerWorldPos);
+        
+        if (screenPos.z > 0)
+        {
+            GUIStyle markerStyle = new GUIStyle();
+            markerStyle.fontSize = 30;
+            markerStyle.normal.textColor = Color.green;
+            markerStyle.alignment = TextAnchor.MiddleCenter;
+            
+            // Draw exclamation mark
+            GUI.Label(new Rect(screenPos.x - 15, Screen.height - screenPos.y - 15, 30, 30), "!", markerStyle);
+            
+            // Draw mission name below marker
+            markerStyle.fontSize = 14;
+            markerStyle.normal.textColor = Color.white;
+            GUI.Label(new Rect(screenPos.x - 75, Screen.height - screenPos.y + 15, 150, 20), 
+                      "?? " + missionName, markerStyle);
         }
     }
     
