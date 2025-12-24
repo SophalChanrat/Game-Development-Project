@@ -265,6 +265,12 @@ public class AnimalRescueMission : MonoBehaviour
         // ALSO register any existing RescueInteractable in scene that don't have RescueDetector
         RegisterExistingAnimals();
         
+        // Play combat music
+        if (MusicManager.Instance != null)
+        {
+            MusicManager.Instance.PlayCombatMusicImmediate();
+        }
+        
         // Play sound
         if (audioSource != null && missionStartSound != null)
         {
@@ -470,6 +476,12 @@ public class AnimalRescueMission : MonoBehaviour
         Debug.Log("[ANIMAL RESCUE] ===== MISSION COMPLETE =====");
         Debug.Log("[ANIMAL RESCUE] Completed: " + missionName);
         
+        // Play exploration music (victory)
+        if (MusicManager.Instance != null)
+        {
+            MusicManager.Instance.PlayExplorationMusicImmediate();
+        }
+        
         // Play sound
         if (audioSource != null && missionCompleteSound != null)
         {
@@ -511,6 +523,12 @@ public class AnimalRescueMission : MonoBehaviour
         missionFailed = true;
         
         Debug.Log("[ANIMAL RESCUE] Mission failed: " + reason);
+        
+        // Play exploration music (back to normal after failure)
+        if (MusicManager.Instance != null)
+        {
+            MusicManager.Instance.PlayExplorationMusicImmediate();
+        }
         
         // Play sound
         if (audioSource != null && missionFailSound != null)

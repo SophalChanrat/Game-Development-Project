@@ -391,6 +391,12 @@ public class MissionSystem : MonoBehaviour
         // Setup tree protection
         SetupTreeProtection();
         
+        // Play combat music
+        if (MusicManager.Instance != null)
+        {
+            MusicManager.Instance.PlayCombatMusicImmediate();
+        }
+        
         // Play sound
         if (audioSource != null && missionStartSound != null)
         {
@@ -524,6 +530,12 @@ public class MissionSystem : MonoBehaviour
         
         Debug.Log("[MISSION] Completed: " + missionName);
         
+        // Play exploration music (victory)
+        if (MusicManager.Instance != null)
+        {
+            MusicManager.Instance.PlayExplorationMusicImmediate();
+        }
+        
         // Play sound
         if (audioSource != null && missionCompleteSound != null)
         {
@@ -569,6 +581,12 @@ public class MissionSystem : MonoBehaviour
         missionFailed = true;
         
         Debug.Log("[MISSION] Failed: " + reason);
+        
+        // Play exploration music (back to normal after failure)
+        if (MusicManager.Instance != null)
+        {
+            MusicManager.Instance.PlayExplorationMusicImmediate();
+        }
         
         // Play sound
         if (audioSource != null && missionFailSound != null)

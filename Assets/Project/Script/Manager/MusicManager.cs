@@ -52,6 +52,9 @@ public class MusicManager : MonoBehaviour
     private float combatExitTimer = 0f;
     private float combatIntroTimer = 0f;
     private bool isInCombatIntro = false;
+    
+    // Mission lock - prevents automatic music transitions during missions
+    private bool isMissionActive = false;
 
     // Singleton pattern
     public static MusicManager Instance { get; private set; }
@@ -80,6 +83,10 @@ public class MusicManager : MonoBehaviour
 
     void Update()
     {
+        // Skip automatic transitions if mission is active
+        if (isMissionActive)
+            return;
+        
         // Handle combat intro delay (silence before combat music)
         if (isInCombatIntro)
         {
@@ -113,17 +120,27 @@ public class MusicManager : MonoBehaviour
 
     void SetupAudioSources()
     {
-        // Create exploration audio source
-        explorationSource = gameObject.AddComponent<AudioSource>();
-        explorationSource.loop = true;
-        explorationSource.playOnAwake = false;
-        explorationSource.volume = 0f;
+        // Check if audio sources already exist (in case of scene reload)
+        AudioSource[] existingSources = GetComponents<AudioSource>();
+        if (existingSources.Length >= 2)
+        {
+            explorationSource = existingSources[0];
+            combatSource = existingSources[1];
+        }
+        else
+        {
+            // Create exploration audio source
+            explorationSource = gameObject.AddComponent<AudioSource>();
+            explorationSource.loop = true;
+            explorationSource.playOnAwake = false;
+            explorationSource.volume = 0f;
 
-        // Create combat audio source
-        combatSource = gameObject.AddComponent<AudioSource>();
-        combatSource.loop = true;
-        combatSource.playOnAwake = false;
-        combatSource.volume = 0f;
+            // Create combat audio source
+            combatSource = gameObject.AddComponent<AudioSource>();
+            combatSource.loop = true;
+            combatSource.playOnAwake = false;
+            combatSource.volume = 0f;
+        }
 
         if (showDebugLogs)
         {
@@ -140,6 +157,9 @@ public class MusicManager : MonoBehaviour
     /// </summary>
     public void OnEnemyEnterCombat()
     {
+        // Skip if mission is controlling music
+        if (isMissionActive) return;
+        
         enemiesInCombat++;
         combatExitTimer = 0f;
         
@@ -160,6 +180,9 @@ public class MusicManager : MonoBehaviour
     /// </summary>
     public void OnEnemyExitCombat()
     {
+        // Skip if mission is controlling music
+        if (isMissionActive) return;
+        
         enemiesInCombat = Mathf.Max(0, enemiesInCombat - 1);
         
         if (showDebugLogs)
@@ -394,6 +417,9 @@ public class MusicManager : MonoBehaviour
         combatSource.Stop();
         explorationSource.volume = 0f;
         combatSource.volume = 0f;
+        isInCombatIntro = false;
+        enemiesInCombat = 0;
+        isMissionActive = false;
     }
 
     /// <summary>
@@ -410,6 +436,88 @@ public class MusicManager : MonoBehaviour
     public int GetEnemiesInCombat()
     {
         return enemiesInCombat;
+    }
+
+    /// <summary>
+    /// Force play combat music immediately (used by missions)
+    /// Locks music so enemies dying won't change it back
+    /// </summary>
+    public void PlayCombatMusicImmediate()
+    {
+        if (combatMusic == null)
+        {
+            Debug.LogWarning("[MUSIC] Combat music clip is not assigned!");
+            return;
+        }
+
+        // Lock music control to mission
+        isMissionActive = true;
+
+        // Stop exploration music
+        explorationSource.volume = 0f;
+        explorationSource.Stop();
+        
+        // Reset combat intro state
+        isInCombatIntro = false;
+        combatIntroTimer = 0f;
+        
+        // Play combat music immediately
+        combatSource.clip = combatMusic;
+        combatSource.volume = masterVolume;
+        combatSource.Play();
+        currentState = MusicState.Combat;
+        targetState = MusicState.Combat;
+
+        if (showDebugLogs)
+        {
+            Debug.Log("[MUSIC] Force playing combat music (mission started) - music locked");
+        }
+    }
+
+    /// <summary>
+    /// Force play exploration music immediately (used by missions on win/lose, and menu)
+    /// Unlocks music control
+    /// </summary>
+    public void PlayExplorationMusicImmediate()
+    {
+        if (explorationMusic == null)
+        {
+            Debug.LogWarning("[MUSIC] Exploration music clip is not assigned!");
+            return;
+        }
+
+        // Unlock music control
+        isMissionActive = false;
+
+        // Stop combat music
+        combatSource.volume = 0f;
+        combatSource.Stop();
+        
+        // Reset combat states
+        isInCombatIntro = false;
+        combatIntroTimer = 0f;
+        enemiesInCombat = 0;
+        combatExitTimer = 0f;
+        
+        // Play exploration music immediately
+        explorationSource.clip = explorationMusic;
+        explorationSource.volume = masterVolume;
+        explorationSource.Play();
+        currentState = MusicState.Exploration;
+        targetState = MusicState.Exploration;
+
+        if (showDebugLogs)
+        {
+            Debug.Log("[MUSIC] Force playing exploration music - music unlocked");
+        }
+    }
+    
+    /// <summary>
+    /// Check if mission is controlling music
+    /// </summary>
+    public bool IsMissionActive()
+    {
+        return isMissionActive;
     }
 
     #endregion
