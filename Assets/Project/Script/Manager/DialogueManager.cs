@@ -25,14 +25,24 @@ public class DialogueManager : MonoBehaviour
     [Tooltip("NPC name to display")]
     public string npcName = "Forest Guardian";
 
-    [Header("Dialogue Content")]
-    private List<string> dialogueLines = new List<string>
+    [Header("Dialogue Content - Initial")]
+    [SerializeField] private List<string> initialDialogueLines = new List<string>
     {
         "Guardian… thank you for answering my call. Our forest is in danger.",
         "Goblins are cutting trees to steal the Heart Crystals hidden inside them.",
         "You must protect the forest. Stop the goblins and free the trapped animals.",
         "Collect Nature Orbs by defeating enemies and saving wildlife. Use them to restore parts of the forest.",
         "I believe in you, young guardian. Go, and keep the forest alive."
+    };
+    
+    [Header("Dialogue Content - After Missions Complete")]
+    [SerializeField] private List<string> completionDialogueLines = new List<string>
+    {
+        "You have done it, Guardian! The forest is saved!",
+        "The trees are protected and the animals are free once more.",
+        "The Heart Crystals are safe, and nature flourishes again.",
+        "You have proven yourself a true protector of the forest.",
+        "Thank you, brave Guardian. The forest spirits will remember your deeds forever!"
     };
 
     [SerializeField] private List<Sprite> backgroundImages = new List<Sprite>();
@@ -44,13 +54,39 @@ public class DialogueManager : MonoBehaviour
     [Tooltip("Characters per second")]
     public float typingSpeed = 50f;
     
-    [Header("Mission Unlock")]
+    [Header("Mission Tracking")]
     [Tooltip("Has the player talked to the Tree Spirit?")]
     public static bool hasTalkedToTreeSpirit = false;
     
+    [Tooltip("Have all missions been completed?")]
+    public static bool allMissionsCompleted = false;
+    
+    [Tooltip("Has player received the completion dialogue?")]
+    public static bool hasReceivedCompletionDialogue = false;
+    
+    [Header("Return Marker Settings")]
+    [Tooltip("Show marker when all missions complete")]
+    public bool showReturnMarker = true;
+    
+    [Tooltip("Marker height above NPC")]
+    public float markerHeight = 3f;
+    
+    [Tooltip("Marker bob speed")]
+    public float markerBobSpeed = 2f;
+    
+    [Tooltip("Marker bob amount")]
+    public float markerBobAmount = 0.3f;
+    
+    [Header("Events")]
     [Tooltip("Event when dialogue completes and missions unlock")]
     public UnityEngine.Events.UnityEvent OnMissionsUnlocked;
+    
+    [Tooltip("Event when all missions complete and player talks again")]
+    public UnityEngine.Events.UnityEvent OnAllMissionsCompleteTalk;
 
+    // Current dialogue being used
+    private List<string> currentDialogueLines;
+    
     private int currentDialogueIndex = 0;
     private bool isDialogueActive = false;
     private bool isTyping = false;
@@ -68,8 +104,12 @@ public class DialogueManager : MonoBehaviour
             playerInput = playerObj.GetComponent<PlayerInput>();
         }
         
+        // Set initial dialogue
+        currentDialogueLines = initialDialogueLines;
+        
         // Hide dialogue canvas at start
-        dialogueCanvas.gameObject.SetActive(false);
+        if (dialogueCanvas != null)
+            dialogueCanvas.gameObject.SetActive(false);
         
         if (pressEPrompt != null)
         {
@@ -97,6 +137,33 @@ public class DialogueManager : MonoBehaviour
         if (pressEPrompt != null)
         {
             pressEPrompt.SetActive(playerInRange && !isDialogueActive);
+        }
+        
+        // Check if all missions are completed
+        CheckAllMissionsCompleted();
+    }
+    
+    void CheckAllMissionsCompleted()
+    {
+        if (allMissionsCompleted) return; // Already marked complete
+        if (!hasTalkedToTreeSpirit) return; // Missions not even started
+        
+        // Check tree protection mission
+        MissionSystem treeMission = FindObjectOfType<MissionSystem>();
+        bool treeComplete = (treeMission == null || treeMission.IsMissionCompleted());
+        
+        // Check animal rescue mission
+        AnimalRescueMission rescueMission = FindObjectOfType<AnimalRescueMission>();
+        bool rescueComplete = (rescueMission == null || rescueMission.IsMissionCompleted());
+        
+        // If both complete, mark all missions done
+        if (treeComplete && rescueComplete)
+        {
+            allMissionsCompleted = true;
+            currentDialogueLines = completionDialogueLines;
+            Debug.Log("[DIALOGUE] ========================================");
+            Debug.Log("[DIALOGUE] ALL MISSIONS COMPLETED! Return to Tree Spirit!");
+            Debug.Log("[DIALOGUE] ========================================");
         }
     }
 
@@ -155,9 +222,17 @@ public class DialogueManager : MonoBehaviour
     {
         if (isDialogueActive) return;
         
+        // Switch to completion dialogue if all missions done
+        if (allMissionsCompleted && !hasReceivedCompletionDialogue)
+        {
+            currentDialogueLines = completionDialogueLines;
+        }
+        
         isDialogueActive = true;
         currentDialogueIndex = 0;
-        dialogueCanvas.gameObject.SetActive(true);
+        
+        if (dialogueCanvas != null)
+            dialogueCanvas.gameObject.SetActive(true);
         
         if (pressEPrompt != null)
         {
@@ -171,17 +246,17 @@ public class DialogueManager : MonoBehaviour
 
     private void DisplayCurrentDialogue()
     {
-        if (currentDialogueIndex < dialogueLines.Count)
+        if (currentDialogueIndex < currentDialogueLines.Count)
         {
             ChangeBackground(currentDialogueIndex);
             
             if (useTypingEffect)
             {
-                StartCoroutine(TypeText(dialogueLines[currentDialogueIndex]));
+                StartCoroutine(TypeText(currentDialogueLines[currentDialogueIndex]));
             }
             else
             {
-                dialogueText.text = dialogueLines[currentDialogueIndex];
+                dialogueText.text = currentDialogueLines[currentDialogueIndex];
             }
         }
     }
@@ -202,9 +277,9 @@ public class DialogueManager : MonoBehaviour
     
     void CompleteCurrentLine()
     {
-        if (currentDialogueIndex < dialogueLines.Count)
+        if (currentDialogueIndex < currentDialogueLines.Count)
         {
-            dialogueText.text = dialogueLines[currentDialogueIndex];
+            dialogueText.text = currentDialogueLines[currentDialogueIndex];
         }
         isTyping = false;
     }
@@ -213,7 +288,7 @@ public class DialogueManager : MonoBehaviour
     {
         currentDialogueIndex++;
 
-        if (currentDialogueIndex < dialogueLines.Count)
+        if (currentDialogueIndex < currentDialogueLines.Count)
         {
             DisplayCurrentDialogue();
         }
@@ -232,12 +307,15 @@ public class DialogueManager : MonoBehaviour
     {
         isDialogueActive = false;
         isTyping = false;
-        dialogueCanvas.gameObject.SetActive(false);
+        
+        if (dialogueCanvas != null)
+            dialogueCanvas.gameObject.SetActive(false);
+        
         currentDialogueIndex = 0;
         
         StopAllCoroutines();
         
-        // Unlock missions after first dialogue completion
+        // First time talking - unlock missions
         if (!hasTalkedToTreeSpirit)
         {
             hasTalkedToTreeSpirit = true;
@@ -250,6 +328,17 @@ public class DialogueManager : MonoBehaviour
             
             // Notify all missions that they are now available
             NotifyMissionsUnlocked();
+        }
+        // All missions complete - completion dialogue finished
+        else if (allMissionsCompleted && !hasReceivedCompletionDialogue)
+        {
+            hasReceivedCompletionDialogue = true;
+            Debug.Log("[DIALOGUE] ========================================");
+            Debug.Log("[DIALOGUE] GAME COMPLETE! Player finished all missions!");
+            Debug.Log("[DIALOGUE] ========================================");
+            
+            // Invoke completion event
+            OnAllMissionsCompleteTalk?.Invoke();
         }
         
         Debug.Log("[DIALOGUE] Ended dialogue");
@@ -304,12 +393,22 @@ public class DialogueManager : MonoBehaviour
     public bool IsDialogueActive() => isDialogueActive;
     public bool IsPlayerInRange() => playerInRange;
     public static bool AreMissionsUnlocked() => hasTalkedToTreeSpirit;
+    public static bool AreAllMissionsComplete() => allMissionsCompleted;
+    public static bool HasReceivedCompletion() => hasReceivedCompletionDialogue;
     
-    // GUI for interaction prompt (similar to MissionSystem)
+    // GUI for interaction prompt AND return marker
     void OnGUI()
     {
+        if (player == null) return;
+        
+        // Show return marker when all missions complete but haven't talked yet
+        if (showReturnMarker && allMissionsCompleted && !hasReceivedCompletionDialogue && !isDialogueActive)
+        {
+            DrawReturnMarker();
+        }
+        
         if (!showInteractionPrompt || isDialogueActive) return;
-        if (!playerInRange || player == null) return;
+        if (!playerInRange) return;
         
         // Draw interaction prompt
         Vector3 screenPos = Camera.main.WorldToScreenPoint(transform.position + Vector3.up * 2f);
@@ -328,6 +427,38 @@ public class DialogueManager : MonoBehaviour
             style.normal.textColor = Color.white;
             GUI.Label(new Rect(screenPos.x - 150, Screen.height - screenPos.y - 20, 300, 30), 
                       npcName, style);
+        }
+    }
+    
+    void DrawReturnMarker()
+    {
+        // Calculate bobbing position
+        float bob = Mathf.Sin(Time.time * markerBobSpeed) * markerBobAmount;
+        Vector3 markerWorldPos = transform.position + Vector3.up * (markerHeight + bob);
+        
+        Vector3 screenPos = Camera.main.WorldToScreenPoint(markerWorldPos);
+        
+        if (screenPos.z > 0)
+        {
+            GUIStyle markerStyle = new GUIStyle();
+            markerStyle.fontSize = 30;
+            markerStyle.normal.textColor = Color.yellow;
+            markerStyle.alignment = TextAnchor.MiddleCenter;
+            
+            // Draw question mark
+            GUI.Label(new Rect(screenPos.x - 15, Screen.height - screenPos.y - 15, 30, 30), "?", markerStyle);
+            
+            // Draw text below marker
+            markerStyle.fontSize = 14;
+            markerStyle.normal.textColor = Color.white;
+            GUI.Label(new Rect(screenPos.x - 100, Screen.height - screenPos.y + 15, 200, 20), 
+                      "Return to " + npcName, markerStyle);
+            
+            // Draw "Missions Complete!" text
+            markerStyle.fontSize = 12;
+            markerStyle.normal.textColor = Color.green;
+            GUI.Label(new Rect(screenPos.x - 100, Screen.height - screenPos.y + 35, 200, 20), 
+                      "All Missions Complete!", markerStyle);
         }
     }
     
