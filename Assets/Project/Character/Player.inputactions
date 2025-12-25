@@ -542,6 +542,17 @@
                 },
                 {
                     "name": "",
+                    "id": "67e97b85-feb1-40f3-bc78-abe971a5d34f",
+                    "path": "<Gamepad>/buttonEast",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Gamepad",
+                    "action": "Interact",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
                     "id": "155271c1-ab52-4d75-8241-282e5f0ee4b0",
                     "path": "<Keyboard>/space",
                     "interactions": "",
@@ -553,11 +564,33 @@
                 },
                 {
                     "name": "",
+                    "id": "aea0a1dd-d493-47da-93af-57a27a569653",
+                    "path": "<Gamepad>/buttonSouth",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Gamepad",
+                    "action": "continue",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
                     "id": "6c05dcdc-7a3e-45b8-8aa9-556bb75c2679",
                     "path": "*/{Back}",
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
+                    "action": "Pause",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "d437354c-9d63-402f-a45a-4602d6688951",
+                    "path": "<XInputController>/start",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Gamepad",
                     "action": "Pause",
                     "isComposite": false,
                     "isPartOfComposite": false

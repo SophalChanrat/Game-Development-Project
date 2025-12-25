@@ -4,6 +4,7 @@ using TMPro;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
 public class DialogueManager : MonoBehaviour
 {
@@ -63,6 +64,13 @@ public class DialogueManager : MonoBehaviour
     
     [Tooltip("Has player received the completion dialogue?")]
     public static bool hasReceivedCompletionDialogue = false;
+    
+    [Header("Credits Scene")]
+    [Tooltip("Name of the credits scene to load after final dialogue")]
+    public string creditsSceneName = "CreditsScene";
+    
+    [Tooltip("Delay before loading credits scene")]
+    public float creditsLoadDelay = 1f;
     
     [Header("Return Marker Settings")]
     [Tooltip("Show marker when all missions complete")]
@@ -329,19 +337,44 @@ public class DialogueManager : MonoBehaviour
             // Notify all missions that they are now available
             NotifyMissionsUnlocked();
         }
-        // All missions complete - completion dialogue finished
+        // All missions complete - completion dialogue finished -> Load Credits
         else if (allMissionsCompleted && !hasReceivedCompletionDialogue)
         {
             hasReceivedCompletionDialogue = true;
             Debug.Log("[DIALOGUE] ========================================");
-            Debug.Log("[DIALOGUE] GAME COMPLETE! Player finished all missions!");
+            Debug.Log("[DIALOGUE] GAME COMPLETE! Loading Credits Scene...");
             Debug.Log("[DIALOGUE] ========================================");
             
             // Invoke completion event
             OnAllMissionsCompleteTalk?.Invoke();
+            
+            // Load credits scene after delay
+            StartCoroutine(LoadCreditsScene());
         }
         
         Debug.Log("[DIALOGUE] Ended dialogue");
+    }
+    
+    IEnumerator LoadCreditsScene()
+    {
+        // Wait a moment before loading credits
+        yield return new WaitForSeconds(creditsLoadDelay);
+        
+        // Stop music or play special music if needed
+        if (MusicManager.Instance != null)
+        {
+            MusicManager.Instance.PlayExplorationMusicImmediate();
+        }
+        
+        // Load credits scene
+        if (!string.IsNullOrEmpty(creditsSceneName))
+        {
+            SceneManager.LoadScene(creditsSceneName);
+        }
+        else
+        {
+            Debug.LogWarning("[DIALOGUE] Credits scene name not set!");
+        }
     }
     
     private void NotifyMissionsUnlocked()

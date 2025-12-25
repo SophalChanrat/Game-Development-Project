@@ -19370,6 +19370,10 @@ PrefabInstance:
       propertyPath: dialogueCanvas
       value: 
       objectReference: {fileID: 1725074102}
+    - target: {fileID: 5275824582165926167, guid: 622d1e8be0597ca4a988738f935ace6b, type: 3}
+      propertyPath: creditsSceneName
+      value: CreditScene
+      objectReference: {fileID: 0}
     - target: {fileID: 8355234111126401722, guid: 622d1e8be0597ca4a988738f935ace6b, type: 3}
       propertyPath: m_Name
       value: SpiritTree
