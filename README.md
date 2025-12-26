@@ -49,12 +49,14 @@ Failure to protect the forest results in the loss of balance and the fall of the
 * **Space** – Jump
 * **E** – Interact / Rescue Animals
 * **Mouse Scroll Click** – Enemy Lock
+* **1 2 3** - Spirit Magical Skills
 
 ### Controller
 
 * Left Stick – Move
 * Right Stick – Look / Lock Enemy
 * Buttons – Attack, Skills, Dash, Interact
+* D-Pad - Spirit Magical Skills
 
 ## 🔄 Gameplay Flow
 
