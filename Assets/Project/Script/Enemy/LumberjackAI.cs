@@ -708,7 +708,8 @@ public class LumberjackAI : MonoBehaviour
             Gizmos.DrawLine(transform.position, currentTargetTree.transform.position);
             Gizmos.DrawSphere(currentTargetTree.transform.position, 0.5f);
 
-            // Show distance to target
+#if UNITY_EDITOR
+            // Show distance to target (Editor only)
             if (Application.isPlaying)
             {
                 float distance = Vector3.Distance(transform.position, currentTargetTree.transform.position);
@@ -717,6 +718,7 @@ public class LumberjackAI : MonoBehaviour
                     $"Distance: {distance:F2}m\nChops: {currentTargetTree.GetCurrentChops()}/{currentTargetTree.GetChopsRequired()}"
                 );
             }
+#endif
         }
 
         // Show agent path

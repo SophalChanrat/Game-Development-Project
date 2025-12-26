@@ -337,10 +337,12 @@ public class TreeHealth : MonoBehaviour
             Gizmos.DrawRay(transform.position + Vector3.up, fallDirection.normalized * 3f);
         }
         
-        // Show chop count
+#if UNITY_EDITOR
+        // Show chop count (Editor only)
         if (Application.isPlaying)
         {
             UnityEditor.Handles.Label(transform.position + Vector3.up * 3f, $"Chops: {currentChops}/{chopsRequired}");
         }
+#endif
     }
 }
