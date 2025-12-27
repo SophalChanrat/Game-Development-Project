@@ -26,7 +26,7 @@ public class MenuManager : MonoBehaviour
       // Trigger fade animation
       fadeAnimator.SetTrigger("isFadeOut"); 
       // Wait for fade duration (match your animation length)
-      yield return new WaitForSeconds(1f); 
+      yield return new WaitForSeconds(3f); 
       // Show loading panel
       panelMainMenu.SetActive(false); 
       panelLoading.SetActive(true); 
@@ -84,10 +84,10 @@ public class MenuManager : MonoBehaviour
     public void QuitGame()
     {
         Debug.Log("Game quit");
-#if UNITY_EDITOR
-        UnityEditor.EditorApplication.isPlaying = false;
-#else
-        Application.Quit();
-#endif
+    #if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+    #else
+            Application.Quit();
+    #endif
     }
 }
