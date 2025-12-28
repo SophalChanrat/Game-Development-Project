@@ -177,6 +177,12 @@ public class CreditManager : MonoBehaviour
         // Reset any static variables if needed
         ResetGameState();
         
+        // Play exploration music for menu (if MusicManager exists)
+        if (MusicManager.Instance != null)
+        {
+            MusicManager.Instance.PlayExplorationMusicImmediate();
+        }
+        
         // Ensure cursor is visible for menu
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;

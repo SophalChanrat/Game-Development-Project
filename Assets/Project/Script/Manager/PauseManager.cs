@@ -27,6 +27,9 @@ public class PauseManager : MonoBehaviour
     [Tooltip("Name of your main menu scene")]
     public string mainMenuSceneName = "MainMenu";
     
+    // PlayerPrefs key for volume persistence
+    private const string VOLUME_PREF_KEY = "MusicVolume";
+    
     // State tracking
     private bool isPaused = false;
     
@@ -54,16 +57,26 @@ public class PauseManager : MonoBehaviour
             settingsPanel.SetActive(false);
         
         // Initialize music volume slider
-        if (musicVolumeSlider != null && MusicManager.Instance != null)
+        if (musicVolumeSlider != null)
         {
+            // Load saved volume or get from MusicManager
+            float savedVolume = PlayerPrefs.GetFloat(VOLUME_PREF_KEY, 0.7f);
+            
+            if (MusicManager.Instance != null)
+            {
+                // Sync MusicManager with saved volume
+                MusicManager.Instance.SetMasterVolume(savedVolume);
+                savedVolume = MusicManager.Instance.masterVolume;
+            }
+            
             // Set slider to current music volume
-            musicVolumeSlider.value = MusicManager.Instance.masterVolume;
+            musicVolumeSlider.value = savedVolume;
             
             // Add listener to update volume when slider changes
             musicVolumeSlider.onValueChanged.AddListener(OnMusicVolumeChanged);
             
             // Update volume text if present
-            UpdateVolumeText(musicVolumeSlider.value);
+            UpdateVolumeText(savedVolume);
         }
     }
 
@@ -173,6 +186,14 @@ public class PauseManager : MonoBehaviour
         // Resume time before loading scene (important!)
         Time.timeScale = 1f;
         
+        // Stop combat music and prepare for menu music
+        if (MusicManager.Instance != null)
+        {
+            // This will reset music state and play exploration music
+            // The MenuManager will pick this up when the scene loads
+            MusicManager.Instance.PlayExplorationMusicImmediate();
+        }
+        
         // Load main menu scene
         SceneManager.LoadScene(mainMenuSceneName);
     }
@@ -190,6 +211,10 @@ public class PauseManager : MonoBehaviour
         {
             MusicManager.Instance.SetMasterVolume(value);
         }
+        
+        // Save to PlayerPrefs for persistence across scenes
+        PlayerPrefs.SetFloat(VOLUME_PREF_KEY, value);
+        PlayerPrefs.Save();
         
         UpdateVolumeText(value);
     }
