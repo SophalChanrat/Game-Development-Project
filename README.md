@@ -120,9 +120,9 @@ UI elements are kept simple and functional, focusing on player health, tree heal
 * Simple level and map design
 
 
-## 🎥 Demo
+## 🎥 Demo &Game Files Installation
 
-A gameplay demo and build files are available here:
+A gameplay demo and build game files are available here:
 
 👉 [https://drive.google.com/drive/folders/1Yj6SWKWuSBjTdOI62lQafTIYTexJTMF1?usp=sharing](https://drive.google.com/drive/folders/1Yj6SWKWuSBjTdOI62lQafTIYTexJTMF1?usp=sharing)
 
